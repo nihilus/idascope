@@ -18,4 +18,4 @@ To make the MSDN database to the WinAPI browser available, follow the steps desc
 Final Words
 -----------
 
-IDAscope has functionality (annotation, ccoloring, code conversion, ...) that can alter your IDB. While it should normally not happen, we cannot guarantee that it will not break the IDB of your analysis target. Therefore, we recommend making backups before using it. By using this tool, we assume that you know what you are doing and you accept that you are using it on your own risk. As stated in the license, we will not take liability for any damage caused by this tool.
+IDAscope has functionality (annotation, coloring, code conversion, ...) that can alter your IDB. While it should normally not happen, we cannot guarantee that it will not break the IDB of your analysis target. Therefore, we recommend making backups before using it. By using this tool, we assume that you know what you are doing and you accept that you are using it on your own risk. As stated in the license, we will not take liability for any damage caused by this tool.
