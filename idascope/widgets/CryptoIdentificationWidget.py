@@ -142,9 +142,13 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         self.aritlog_controls_zeroing_cb = QtGui.QCheckBox("Exclude Zeroing")
         self.aritlog_controls_zeroing_cb.setCheckState(self.QtCore.Qt.Checked)
         self.aritlog_controls_zeroing_cb.stateChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_looped_cb = QtGui.QCheckBox("Looped Blocks only")
+        self.aritlog_controls_looped_cb.setCheckState(self.QtCore.Qt.Checked)
+        self.aritlog_controls_looped_cb.stateChanged.connect(self.populate_aritlog_table)
         self.aritlog_controls_group_cb = QtGui.QCheckBox("Group by Functions")
         self.aritlog_controls_group_cb.stateChanged.connect(self.populate_aritlog_table)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_zeroing_cb)
+        aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_looped_cb)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_group_cb)
         self.aritlog_controls_aggregator_widget.setLayout(aritlog_controls_aggregator_layout)
 
@@ -186,9 +190,10 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         na = self.aritlog_controls_num_api_editor
         is_grouped = self.aritlog_controls_group_cb.isChecked()
         is_nonzero = self.aritlog_controls_zeroing_cb.isChecked()
+        is_looped = self.aritlog_controls_looped_cb.isChecked()
 
         aritlog_blocks = self.ci.get_aritlog_blocks(ts.low / 100.0, ts.high / 100.0, bs.low, bs.high, na.low, \
-            na.high, is_nonzero)
+            na.high, is_nonzero, is_looped)
 
         self.set_aritlog_table_header_labels(is_grouped)
         table_data = self.calculate_aritlog_table_data(aritlog_blocks, is_grouped)

@@ -57,7 +57,7 @@ img {
 <body>
 
 <h1>simpliFiRE.IDAscope</h1>
-<p class="version_info">[Release version: 1.0 - Date: 17.09.2012]</p>
+<p class="version_info">[Release version: 1.0a - Date: 18.09.2012]</p>
 
 <p>This is the guide to IDAscope, a plugin intended to ease reverse engineering with a focus on malware analysis. The idea for the plugin was born at <a href="http://recon.cx">RECON 2012</a> out of some prototype scripts. IDAscope is written in pure Python with a PySide based GUI.</p><p>The authors of IDAscope are:</p>
 <ul>
@@ -223,7 +223,13 @@ img {
 <p>The Arit/Log Rating simply allows narrowing down the ratios to be considered. Raising this value will show only blocks with a high calculation portion but may miss some crypto candidates.</p>
 <p>The Basic Block size can be both used to exclude small and large blocks, thus aiming at typical sizes for certain algorithms.</p>
 <p>The number of allowed calls is counted per function instead of per basic block and turned out to be helpful in order to reduce false positives. By limiting this to a few calls (0, 1, 2), more or less self-contained functions can be selected.</p>
-<p>The check boxes next to the bars give additional methods to reduce false positives or increase the accessibility. "Exclude Zeroing" only considers instructions that are not used to clear a register, e.g. "xor eax, eax". "Group By Functions" changes the view from a basic block based view to a function based view.</p>
+<p>The check boxes next to the bars give additional methods to reduce false positives or increase the accessibility.
+<ul>
+<li>"Exclude Zeroing" only considers instructions that are not used to clear a register, e.g. "xor eax, eax".</li>
+<li>"Looped Blocks only" will reduce the display to blocks that are contained in loops.</li>
+<li>"Group By Functions" changes the view from a basic block based view to a function based view.</li>
+</ul>
+</p>
 <p>A description of this widget is also covered in this <a href="http://pnx-tf.blogspot.de/2012/08/idascope-update-crypto-identification.html">blog post</a>.</p>
 
 </body>

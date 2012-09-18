@@ -70,6 +70,7 @@ class AritlogBasicBlock():
         self.self_nullifying_instructions = ["xor", "sbb", "sub"]
         self.start_ea = start_ea
         self.end_ea = end_ea
+        self.is_contained_in_loop = False
         self.num_instructions = 0
         self.num_log_arit_instructions = 0
         self.num_zeroing_instructions = 0
@@ -116,8 +117,9 @@ class AritlogBasicBlock():
         Convenience function.
         @return: a nice string representation for this object
         """
-        return "0x%x - 0x%x (%d), aritlog: %02.2f%% (%02.2f%%)" % (self.start_ea, self.end_ea, \
-        self.num_instructions, self.aritlog_rating * 100.0, self.nonzeroing_aritlog_rating * 100.0)
+        return "0x%x - 0x%x (%d), aritlog: %02.2f%% (%02.2f%%) [%s]" % (self.start_ea, self.end_ea, \
+        self.num_instructions, self.aritlog_rating * 100.0, self.nonzeroing_aritlog_rating * 100.0,
+        self.is_contained_in_loop and "loop" or "no loop")
 
     def __lt__(self, other):
         """

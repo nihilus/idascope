@@ -30,6 +30,7 @@ import re
 
 from IdaProxy import IdaProxy
 from PatternManager import PatternManager
+from Tarjan import Tarjan
 
 from idascope.core.structures.Segment import Segment
 from idascope.core.structures.AritlogBasicBlock import AritlogBasicBlock
@@ -50,6 +51,7 @@ class CryptoIdentifier():
         print ("[|] loading CryptoIdentifier")
         self.time = time
         self.re = re
+        self.Tarjan = Tarjan
         self.CryptoSignatureHit = CryptoSignatureHit
         self.AritlogBasicBlock = AritlogBasicBlock
         self.Segment = Segment
@@ -95,6 +97,8 @@ class CryptoIdentifier():
             function_chart = self.ida_proxy.FlowChart(self.ida_proxy.get_func(function_ea))
             calls_in_function = 0
             function_blocks = []
+            function_dgraph = {}
+            blocks_in_loops = set()
             for current_block in function_chart:
                 block = self.AritlogBasicBlock(current_block.startEA, current_block.endEA)
                 for instruction in self.ida_proxy.Heads(block.start_ea, block.end_ea):
@@ -106,7 +110,21 @@ class CryptoIdentifier():
                         if mnemonic == "call":
                             calls_in_function += 1
                 function_blocks.append(block)
+                # prepare graph for Tarjan's algorithm
+                succeeding_blocks = [succ.startEA for succ in current_block.succs()]
+                function_dgraph[current_block.startEA] = succeeding_blocks
+                # add trivial loops
+                if current_block.startEA in succeeding_blocks:
+                    blocks_in_loops.update([current_block.startEA])
+            # perform Tarjan's algorithm to identify strongly connected components (= loops) in the function graph
+            tarjan = self.Tarjan()
+            strongly_connected = tarjan.calculate_strongly_connected_components(function_dgraph)
+            non_trivial_loops = [component for component in strongly_connected if len(component) > 1]
+            for component in non_trivial_loops:
+                blocks_in_loops.update(non_trivial_loops)
             for block in function_blocks:
+                if block.start_ea in blocks_in_loops:
+                    block.is_contained_in_loop = True
                 block.num_calls_in_function = calls_in_function
             self.aritlog_blocks.extend(function_blocks)
         print ("[\\] Analysis took %3.2f seconds" % (self.time.time() - time_before))
@@ -114,7 +132,7 @@ class CryptoIdentifier():
         return self.get_aritlog_blocks(self.low_rating_threshold, self.high_rating_threshold,
             self.low_instruction_threshold, self.high_instruction_threshold,
             self.low_call_threshold, self.high_call_threshold,
-            False)
+            False, False)
 
     def update_thresholds(self, min_rating, max_rating, min_instr, max_instr, min_call, max_call):
         """
@@ -147,19 +165,23 @@ class CryptoIdentifier():
         else:
             self.high_call_threshold = max_call
 
-    def get_aritlog_blocks(self, min_rating, max_rating, min_instr, max_instr, min_api, max_api, is_nonzero):
+    def get_aritlog_blocks(self, min_rating, max_rating, min_instr, max_instr, min_api, max_api, is_nonzero, \
+        is_looped):
         """
         get all blocks that are within the limits specified by the heuristic parameters.
         parameters are the same as in function "update_thresholds" except
         param is_nonzero: defines whether zeroing instructions (like xor eax, eax) shall be counted or not.
         type is_nonzero: boolean
+        param is_looped: defines whether only basic blocks in loops shall be selected
+        type is_looped: boolean
         @return: a list of AritlogBasicBlock data objects, according to the parameters
         """
         self.update_thresholds(min_rating, max_rating, min_instr, max_instr, min_api, max_api)
         return [block for block in self.aritlog_blocks if
             (self.high_rating_threshold >= block.get_aritlog_rating(is_nonzero) >= self.low_rating_threshold) and
             (self.high_instruction_threshold >= block.num_instructions >= self.low_instruction_threshold) and
-            (self.high_call_threshold >= block.num_calls_in_function >= self.low_call_threshold)]
+            (self.high_call_threshold >= block.num_calls_in_function >= self.low_call_threshold) and
+            (not is_looped or block.is_contained_in_loop)]
 
     def get_unfiltered_block_count(self):
         """
@@ -204,7 +226,7 @@ class CryptoIdentifier():
         segments = self.get_segment_data()
         print ("[|] Segments under analysis: ")
         for segment in segments:
-            print ("      " + segment)
+            print ("      " + str(segment))
         print ("[|] PatternManager initialized, number of signatures: %d" % len(self.pm.signatures))
         keywords = self.pm.get_tokenized_signatures(pattern_size)
         print ("[|] PatternManager tokenized patterns into %d chunks of %d bytes" % (len(keywords.keys()), pattern_size))
