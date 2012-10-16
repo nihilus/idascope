@@ -30,8 +30,10 @@
 
 import json
 import os
+import string
 
-import JsonHelper
+from helpers import JsonHelper
+from helpers.Downloader import Downloader
 
 
 class WinApiProvider():
@@ -42,14 +44,19 @@ class WinApiProvider():
     def __init__(self, idascope_config):
         print ("[|] Loading WinApiProvider")
         self.os = os
+        self.string = string
+        self.downloader = Downloader()
+        self.downloader.downloadFinished.connect(self.onDownloadFinished)
         self.idascope_config = idascope_config
         self.winapi_data = {}
         if self.idascope_config.winapi_load_keyword_database:
             self._load_keywords()
+        self.online_msdn_enabled = self.idascope_config.winapi_online_enabled
         self.last_delivered_filepath = self.idascope_config.winapi_rootdir
         self.backward_history = []
         self.forward_history = []
         self.is_appending_to_history = True
+        self.download_receivers = []
 
     def _load_keywords(self):
         """
@@ -58,15 +65,47 @@ class WinApiProvider():
         keywords_file = open(self.idascope_config.winapi_keywords_file, "r")
         self.winapi_data = json.loads(keywords_file.read(), object_hook=JsonHelper.decode_dict)
 
+    def register_data_receiver(self, receiving_function):
+        """
+        (Observer Pattern) Register a data receiver for downloaded data. Each time an
+        online lookup is performed, the data receiver is provided with the downloaded content.
+        @param receiving_function: the function to receive the downloaded data
+        @type: receiveing_function: a function that receives one (str) parameter.
+        """
+        self.download_receivers.append(receiving_function)
+
+    def onDownloadFinished(self):
+        """
+        When a download of MSDN data is finished, notice all receivers.
+        """
+        data = self.downloader.get_data()
+        if not data:
+            data = "Download failed! Try again or check your Internet connection."
+        for receiver in self.download_receivers:
+            receiver(data)
+
     def has_offline_msdn_available(self):
         """
-        Determines wther the offline MSDN database is available or not.
+        Determines whether the offline MSDN database is available or not.
         This is evaluated based on whether the keywords database has been loaded or not.
         @return: (bool) availablity of the MSDN database
         """
         if len(self.winapi_data.keys()) > 0:
             return True
         return False
+
+    def has_online_msdn_available(self):
+        """
+        Determines whether the online MSDN database is available or not.
+        @return: (bool) setting of the online lookup flag
+        """
+        return self.online_msdn_enabled
+
+    def set_online_msdn_enabled(self, enabled):
+        """
+        Change the state of the online lookup availability.
+        """
+        self.online_msdn_enabled = enabled
 
     def get_keywords_for_initial(self, keyword_initial):
         """
@@ -89,6 +128,8 @@ class WinApiProvider():
         api_filenames = self._get_api_filenames(keyword)
         if len(api_filenames) == 1:
             api_filenames = [self.idascope_config.winapi_rootdir + api_filenames[0]]
+        elif self.online_msdn_enabled and len(api_filenames) == 0:
+            return self._get_online_msdn_content(keyword)
         return self._get_document_content(api_filenames)
 
     def get_linked_document_content(self, url):
@@ -113,12 +154,19 @@ class WinApiProvider():
         else:
             return self._get_single_document_content(url.toString()), anchor
 
-    def get_history_states(self):
+    def has_backward_history(self):
         """
-        Get information about whether history stepping (backward, forward) is available or not.
-        @return: a tuple (boolean, boolean) telling about availability of history stepping.
+        Get information about whether backward history stepping is available or not.
+        @return: (boolean) telling about availability of history stepping.
         """
-        return (len(self.backward_history) > 1, len(self.forward_history) > 0)
+        return len(self.backward_history) > 1
+
+    def has_forward_history(self):
+        """
+        Get information about whether forward history stepping is available or not.
+        @return: (boolean) telling about availability of history stepping.
+        """
+        return len(self.forward_history) > 1
 
     def get_previous_document_content(self):
         """
@@ -250,3 +298,48 @@ class WinApiProvider():
             document_content = "<html><head /><body>Well, something has gone wrong here. Try again with some" \
                 + " proper API name.<hr /><p>Exception: %s</p></body></html>" % exc
         return document_content
+
+    def _get_online_msdn_content(self, keyword):
+        """
+        This functions downloads content from the MSDN website. It does not return the
+        information instantly but provides it through a callback that can be registered
+        with the function I{register_data_receiver}.
+        @param keyword: the keyword to look up in MSDN
+        @type keyword: str
+        @return: (str) a waiting message if the keyword has been queried or a negative answer if
+            there are no entries in MSDN
+        """
+        feed_url = "http://social.msdn.microsoft.com/Search/en-us/feed?format=RSS&Query=%s" % keyword
+        feed_content = self.downloader.download(feed_url)
+        if not feed_content:
+            return "<p>Could not access the MSDN feed. Check your Internet connection.</p>"
+        msdn_url = self._get_first_msdn_link(feed_content)
+        if msdn_url != "":
+            return self.cleanup_downloaded_html(self.downloader.download(msdn_url))
+            # FIXME: should threading in IDA ever work, use this...
+            # self.downloader.download_threaded(msdn_url)
+            # return "<p>Fetching information from online MSDN, please wait...</p>"
+        else:
+            return "<p>Even MSDN can't help you on this one.</p>"
+
+    def _get_first_msdn_link(self, feed_content):
+        """
+        Parses the first MSDN URL from a RSS feed.
+        @param feed_content: a rss feed output
+        @type feed_content: str
+        @return: (str) the first MSDN url if existing.
+        """
+        while feed_content.find("<link>") > -1:
+            start_index = feed_content.find("<link>")
+            end_index = feed_content.find("</link>")
+            link_url = feed_content[len("<link>") + start_index:end_index]
+            if "msdn.microsoft.com" in link_url:
+                return link_url
+            else:
+                feed_content = feed_content[feed_content.find("</link>") + 7:]
+            return ""
+
+    def cleanup_downloaded_html(self, content):
+        content = content[content.find("<div class=\"topic\""):content.find("<div id=\"contentFeedback\"")]
+        content = "".join(s for s in content if s in self.string.printable)
+        return content

@@ -36,35 +36,39 @@ class WinApiWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self)
         print "[|] loading WinApiWidget"
-        # enable access to shared IDAscope modules
         self.parent = parent
         self.name = "WinAPI Browsing"
         self.icon = QIcon(self.parent.config.icon_file_path + "winapi.png")
         self.search_icon = QIcon(self.parent.config.icon_file_path + "search.png")
         self.back_icon = QIcon(self.parent.config.icon_file_path + "back.png")
         self.forward_icon = QIcon(self.parent.config.icon_file_path + "forward.png")
-        # This widget may relay on IDAproxy
+        self.online_icon = QIcon(self.parent.config.icon_file_path + "online.png")
         self.ida_proxy = self.parent.ida_proxy
-        self.winapi = self.parent.winapi_provider
-        # references to Qt-specific modules
         self.QtGui = QtGui
         self.QtCore = QtCore
+        self.winapi = self.parent.winapi_provider
         self.old_keyword_initial = ""
+        self.winapi.register_data_receiver(self.populate_browser_window)
         self.createGui()
-        self.set_availability()
+        self.update_availability()
         self.register_hotkeys()
 
-    def set_availability(self):
+    def update_availability(self):
         """
-        Adjust the availability of this widget by checking if the keyword database has been loaded.
-        If the database has not been loaded, deactivate the search functionality.
+        Adjust the availability of this widget by checking if the keyword database has been loaded or
+        online mode is enabled.
         """
-        if not self.winapi.has_offline_msdn_available():
-            self.browser_window.setHtml("<font color=\"#FF0000\">Offline MSDN database is not available. To use " \
+        if not self.winapi.has_offline_msdn_available() and \
+            not self.winapi.has_online_msdn_available():
+            self.browser_window.setHtml("<p><font color=\"#FF0000\">Offline MSDN database is not available. To use " \
                 + "it, have a look at the installation instructions located in the manual: " \
-                + "IDAscope/documentation/manual.html.</font>")
+                + "IDAscope/documentation/manual.html. Online mode is deactivated as well.</font></p>")
             self.search_button.setEnabled(False)
             self.api_chooser_lineedit.setEnabled(False)
+        else:
+            self.browser_window.setHtml("<p>Enter a search term in the above field to search offline/online MSDN.</p>")
+            self.search_button.setEnabled(True)
+            self.api_chooser_lineedit.setEnabled(True)
 
     def register_hotkeys(self):
         """
@@ -78,6 +82,7 @@ class WinApiWidget(QtGui.QWidget):
         """
         self.create_back_button()
         self.create_next_button()
+        self.create_online_button()
         self.create_api_chooser_lineedit()
         self.create_search_button()
         self.create_browser_window()
@@ -85,6 +90,7 @@ class WinApiWidget(QtGui.QWidget):
         winapi_layout = QtGui.QVBoxLayout()
         selection_widget = QtGui.QWidget()
         selection_layout = QtGui.QHBoxLayout()
+        selection_layout.addWidget(self.online_button)
         selection_layout.addWidget(self.back_button)
         selection_layout.addWidget(self.next_button)
         selection_layout.addWidget(self.api_chooser_lineedit)
@@ -113,6 +119,18 @@ class WinApiWidget(QtGui.QWidget):
         self.next_button.resize(self.next_button.sizeHint())
         self.next_button.setEnabled(False)
         self.next_button.clicked.connect(self.onNextButtonClicked)
+
+    def create_online_button(self):
+        """
+        Create a next button to allow easier browsing
+        """
+        self.online_button = QtGui.QPushButton(self.online_icon, "", self)
+        self.online_button.setCheckable(True)
+        if self.winapi.has_online_msdn_available():
+            self.online_button.setChecked(QtCore.Qt.Checked)
+        self.online_button.setToolTip("Enable/disable MSDN online lookup.")
+        self.online_button.resize(self.online_button.sizeHint())
+        self.online_button.clicked.connect(self.onOnlineButtonClicked)
 
     def create_api_chooser_lineedit(self):
         """
@@ -162,14 +180,17 @@ class WinApiWidget(QtGui.QWidget):
                 keyword_data = self.winapi.get_keywords_for_initial(keyword_initial)
                 self.completer_model.setStringList(keyword_data)
 
-    def populate_browser_window(self):
+    def populate_browser_window(self, content=""):
         """
         Populate the browser window based upon the entered term in the search line.
+        @param content: the content to render in the browser
+        @type content: str
         """
-        api_chooser_text = self.api_chooser_lineedit.text()
-        if len(api_chooser_text) > 0:
-            api_document = self.winapi.get_keyword_content(api_chooser_text)
-            self.browser_window.setHtml(api_document)
+        if content == "":
+            api_chooser_text = self.api_chooser_lineedit.text()
+            if len(api_chooser_text) > 0:
+                content = self.winapi.get_keyword_content(api_chooser_text)
+        self.browser_window.setHtml(content)
         self.update_history_button_state()
 
     def onSearchButtonClicked(self):
@@ -197,6 +218,13 @@ class WinApiWidget(QtGui.QWidget):
             self.browser_window.setHtml(document_content)
         self.browser_window.scrollToAnchor(anchor)
         self.update_history_button_state()
+
+    def onOnlineButtonClicked(self):
+        """
+        Action that is performed when the search button is clicked. This will populate the browser window.
+        """
+        self.winapi.set_online_msdn_enabled(not self.winapi.has_online_msdn_available())
+        self.update_availability()
 
     def browserAnchorClicked(self, url):
         """
@@ -234,6 +262,5 @@ class WinApiWidget(QtGui.QWidget):
         Update the button state (enabled/disabled) according to availability of history information from the
         WinApiProvider
         """
-        history_button_states = self.winapi.get_history_states()
-        self.back_button.setEnabled(history_button_states[0])
-        self.next_button.setEnabled(history_button_states[1])
+        self.back_button.setEnabled(self.winapi.has_backward_history())
+        self.next_button.setEnabled(self.winapi.has_forward_history())

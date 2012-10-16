@@ -28,7 +28,7 @@ import json
 
 from IdaProxy import IdaProxy
 
-import JsonHelper
+from helpers import JsonHelper
 
 
     ## 6 nice opposing colors as used in IDAscope standard config

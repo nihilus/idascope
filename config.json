@@ -8,6 +8,7 @@
         },
     "winapi": {
         "search_hotkey": "ctrl+y",
-        "load_keyword_database": true
+        "load_keyword_database": true,
+        "online_enabled": true
         }
 }

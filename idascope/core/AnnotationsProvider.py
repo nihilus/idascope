@@ -30,7 +30,7 @@ import idc
 import idaapi
 import idautils
 
-import JsonHelper
+from helpers import JsonHelper
 
 annotations = {
                0x401000:

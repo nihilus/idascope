@@ -27,7 +27,7 @@
 import os
 import json
 
-from idascope.core import JsonHelper
+from idascope.core.helpers import JsonHelper
 
 
 class IDAscopeConfiguration():
@@ -55,6 +55,7 @@ class IDAscopeConfiguration():
         self.winapi_rootdir = ""
         self.winapi_shortcut = "ctrl+y"
         self.winapi_load_keyword_database = False
+        self.winapi_online_enabled = False
         self._load_config(config_filename)
 
     def _load_config(self, config_filename):
@@ -76,6 +77,7 @@ class IDAscopeConfiguration():
         # widget related configurations
         self.winapi_shortcut = config["winapi"]["search_hotkey"]
         self.winapi_load_keyword_database = config["winapi"]["load_keyword_database"]
+        self.winapi_online_enabled = config["winapi"]["online_enabled"]
 
     def _normalize_path(self, path):
         if self.os_path_normpath is None:

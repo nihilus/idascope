@@ -31,7 +31,7 @@
 import json
 import re
 
-import JsonHelper
+from helpers import JsonHelper
 
 from IdaProxy import IdaProxy
 from idascope.core.structures.FunctionContext import FunctionContext

@@ -30,7 +30,7 @@ import re
 
 from IdaProxy import IdaProxy
 from PatternManager import PatternManager
-from Tarjan import Tarjan
+from helpers.Tarjan import Tarjan
 
 from idascope.core.structures.Segment import Segment
 from idascope.core.structures.AritlogBasicBlock import AritlogBasicBlock
