@@ -33,11 +33,14 @@ class FunctionContext():
     def __init__(self):
         self.function_name = ""
         self.has_dummy_name = False
+        self.has_tags = False
         self.function_address = 0
         self.number_of_basic_blocks = 0
         self.number_of_instructions = 0
         self.number_of_xrefs_from = 0
         self.number_of_xrefs_to = 0
+        self.xrefs_from = set()
+        self.calls_from = set()
         self.call_contexts = []
 
     def __str__(self):
@@ -49,7 +52,7 @@ class FunctionContext():
             self.function_name, self.number_of_instructions, self.number_of_basic_blocks, len(self.call_contexts), \
             self.number_of_xrefs_to, self.number_of_xrefs_from)
 
-    def get_all_tagged_addresses(self):
+    def getAllTaggedAddresses(self):
         """
         Helper function, returning information about semantic tags in this function.
         """

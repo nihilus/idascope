@@ -41,4 +41,4 @@ class Segment():
         Convenience function.
         @return: a nice string representation for this object
         """
-        return "%s (0x%x - 0x%x / %d bytes)" % (self.name, self.start_ea, self.end_ea, len(self.data))
+        return "% 8s (0x%x - 0x%x / % 7d bytes)" % (self.name, self.start_ea, self.end_ea, len(self.data))

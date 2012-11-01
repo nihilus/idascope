@@ -50,7 +50,7 @@ class ParameterContext():
         self.valid = True
         pass
 
-    def get_rendered_push_address(self):
+    def getRenderedPushAddress(self):
         """
         Get the address of this parameter in hex string form.
         @return: the parameter address in hex string form or "unresolved" if it has not been assigned.
@@ -60,7 +60,7 @@ class ParameterContext():
         else:
             return "unresolved"
 
-    def get_rendered_value(self):
+    def getRenderedValue(self):
         """
         Get the value of this parameter in hex string form.
         @return: the value in hex string form or "unresolved" if it has not been assigned.

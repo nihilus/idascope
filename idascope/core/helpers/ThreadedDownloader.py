@@ -77,5 +77,5 @@ class ThreadedDownloader(QtCore.QObject):
         finally:
             self.threadFinished.emit()
 
-    def get_data(self):
+    def getData(self):
         return self._data

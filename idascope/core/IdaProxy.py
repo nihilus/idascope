@@ -46,12 +46,20 @@ class IdaProxy():
         self.BAD_ADDR = 0xffffffff
         self.CIC_ITEM = self.idc.CIC_ITEM
         self.FF_LABL = self.idc.FF_LABL
+        self.FL_CN = self.idc.fl_CN
+        self.FL_CN = self.idc.fl_CN
         self.FUNC_LIB = self.idaapi.FUNC_LIB
         self.FUNCATTR_END = self.idc.FUNCATTR_END
         self.INF_SHORT_DN = self.idc.INF_SHORT_DN
         self.SN_NOWARN = self.idc.SN_NOWARN
         self.SN_NOCHECK = self.idc.SN_NOCHECK
+        self.SA_REL_BYTE = self.idc.saRelByte
+        self.SA_REL_PARA = self.idc.saRelPara
+        self.SC_PRIV = self.idc.scPriv
+        self.SC_PUB = self.idc.scPub
+        self.SEGMOD_KILL = self.idaapi.SEGMOD_KILL
         self.SEARCH_DOWN = 1
+        self.MFF_FAST = self.idaapi.MFF_FAST
 
 ###############################################################################
 # From idc.py
@@ -60,8 +68,20 @@ class IdaProxy():
     def AddHotkey(self, hotkey, function):
         return self.idc.AddHotkey(hotkey, function)
 
+    def AddSeg(self, start_ea, end_ea, base, use32, align, comb):
+        return self.idc.AddSeg(start_ea, end_ea, base, use32, align, comb)
+
+    def Byte(self, byte):
+        return self.idc.Byte(byte)
+
+    def DelSeg(self, address, flags):
+        return self.idc.DelSeg(address, flags)
+
     def Demangle(self, name, disable_mask):
         return self.idc.Demangle(name, disable_mask)
+
+    def FirstSeg(self):
+        return self.idc.FirstSeg()
 
     def get_byte(self, address):
         return self.idaapi.get_byte(address)
@@ -93,6 +113,9 @@ class IdaProxy():
     def GetOperandValue(self, address, index):
         return self.idc.GetOperandValue(address, index)
 
+    def GetString(self, address):
+        return self.idc.GetString(address)
+
     def GetType(self, address):
         type_at_address = self.idc.GetType(address)
         if type_at_address is not None:
@@ -120,6 +143,12 @@ class IdaProxy():
     def Name(self, address):
         return self.idc.Name(address)
 
+    def NextSeg(self, address):
+        return self.idc.NextSeg(address)
+
+    def PatchByte(self, address, byte):
+        self.idc.PatchByte(address, byte)
+
     def PrevHead(self, ea, minea=0):
         return self.idc.PrevHead(ea, minea)
 
@@ -128,6 +157,9 @@ class IdaProxy():
 
     def SegName(self, address):
         return self.idc.SegName(address)
+
+    def SegRename(self, address, name):
+        return self.idc.SegRename(address, name)
 
     def SegStart(self, address):
         return self.idc.SegStart(address)
@@ -144,6 +176,9 @@ class IdaProxy():
 
     def find_not_func(self, *args):
         return self.idaapi.find_not_func(*args)
+
+    def find_binary(self, *args):
+        return self.idaapi.find_binary(*args)
 
     def FlowChart(self, function_address):
         function_chart = []
@@ -164,6 +199,9 @@ class IdaProxy():
     def get_highlighted_identifier(self):
         return self.idaapi.get_highlighted_identifier()
 
+    def isASCII(self, flags):
+        return self.idaapi.isASCII(flags)
+
     def minEA(self):
         return self.idaapi.cvar.inf.minEA
 
@@ -180,8 +218,14 @@ class IdaProxy():
     def CodeRefsTo(self, destination, flow):
         return self.idautils.CodeRefsTo(destination, flow)
 
+    def DataRefsFrom(self, source):
+        return self.idautils.DataRefsFrom(source)
+
     def DataRefsTo(self, destination):
         return self.idautils.DataRefsTo(destination)
+
+    def execute_sync(self, *args):
+        return self.idaapi.execute_sync(*args)
 
     def FuncItems(self, function_address):
         return self.idautils.FuncItems(function_address)
@@ -191,6 +235,9 @@ class IdaProxy():
 
     def Heads(self, start_address=None, end_address=None):
         return self.idautils.Heads(start_address, end_address)
+
+    def Names(self):
+        return self.idautils.Names()
 
     def Segments(self):
         return self.idautils.Segments()

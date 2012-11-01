@@ -50,20 +50,20 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
 
         self.central_widget = self.QtGui.QWidget()
         self.setCentralWidget(self.central_widget)
-        self.createGui()
+        self._createGui()
 
-    def createGui(self):
+    def _createGui(self):
         """
         Setup function for the full GUI of this widget.
         """
         # toolbar
-        self.create_toolbar()
+        self._createToolbar()
 
         # Aritlog heuristic
-        self.create_aritlog_widget()
+        self._createAritlogWidget()
 
         # signature
-        self.create_signature_widget()
+        self._createSignatureWidget()
 
         # layout and fill the widget
         crypto_layout = QtGui.QVBoxLayout()
@@ -76,38 +76,37 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
 
         self.central_widget.setLayout(crypto_layout)
 
-    def create_toolbar(self):
+    def _createToolbar(self):
         """
         Creates the toolbar, containing buttons to control the widget.
         """
-        self.create_scan_action()
+        self._createScanAction()
         self.toolbar = self.addToolBar('Crypto Identification Toobar')
         self.toolbar.addAction(self.scanAction)
 
-    def create_scan_action(self):
+    def _createScanAction(self):
         """
         Create an action for the scan button of the toolbar and connect it.
         """
-        self.scanAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "refresh.png"), \
+        self.scanAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "scancrypto.png"), \
             "Perform deep scan with crypto signatures (might take some time)", self)
-        self.scanAction.triggered.connect(self.onScanButtonClicked)
+        self.scanAction.triggered.connect(self._onScanButtonClicked)
 
-    def onScanButtonClicked(self):
+    def _onScanButtonClicked(self):
         """
         The logic of the scan button from the toolbar.
-        Uses the scanning functions o I{CryptoIdentifier} and updates the elements displaying the results.
+        Uses the scanning functions of I{CryptoIdentifier} and updates the elements displaying the results.
         """
-        self.ci.scan_crypto_patterns()
-        self.populate_signature_tree()
-        self.ci.scan_aritlog()
-        self.populate_aritlog_table()
-        pass
+        self.ci.scanCryptoPatterns()
+        self.populateSignatureTree()
+        self.ci.scanAritlog()
+        self.populateAritlogTable()
 
 ################################################################################
 # Aritlog GUI
 ################################################################################
 
-    def create_aritlog_widget(self):
+    def _createAritlogWidget(self):
         """
         Create the widget for the arithmetic/logic heuristic.
         """
@@ -124,13 +123,13 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         self.aritlog_controls_slider_widget = QtGui.QWidget()
         aritlog_controls_editor_layout = QtGui.QVBoxLayout()
         self.aritlog_controls_threshold_editor = BoundsEditor("ArithLog Rating: ", 0, 100, 40, 100)
-        self.aritlog_controls_threshold_editor.boundsChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_threshold_editor.boundsChanged.connect(self.populateAritlogTable)
         self.aritlog_controls_bblock_size_editor = BoundsEditor("Basic Blocks size: ", 0, 100, 8, 100, \
             False)
-        self.aritlog_controls_bblock_size_editor.boundsChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_bblock_size_editor.boundsChanged.connect(self.populateAritlogTable)
         self.aritlog_controls_num_api_editor = BoundsEditor("Allowed calls: ", 0, 10, 0, 1, \
             False)
-        self.aritlog_controls_num_api_editor.boundsChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_num_api_editor.boundsChanged.connect(self.populateAritlogTable)
         aritlog_controls_editor_layout.addWidget(self.aritlog_controls_threshold_editor)
         aritlog_controls_editor_layout.addWidget(self.aritlog_controls_bblock_size_editor)
         aritlog_controls_editor_layout.addWidget(self.aritlog_controls_num_api_editor)
@@ -141,12 +140,12 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         aritlog_controls_aggregator_layout = QtGui.QVBoxLayout()
         self.aritlog_controls_zeroing_cb = QtGui.QCheckBox("Exclude Zeroing")
         self.aritlog_controls_zeroing_cb.setCheckState(self.QtCore.Qt.Checked)
-        self.aritlog_controls_zeroing_cb.stateChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_zeroing_cb.stateChanged.connect(self.populateAritlogTable)
         self.aritlog_controls_looped_cb = QtGui.QCheckBox("Looped Blocks only")
         self.aritlog_controls_looped_cb.setCheckState(self.QtCore.Qt.Checked)
-        self.aritlog_controls_looped_cb.stateChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_looped_cb.stateChanged.connect(self.populateAritlogTable)
         self.aritlog_controls_group_cb = QtGui.QCheckBox("Group by Functions")
-        self.aritlog_controls_group_cb.stateChanged.connect(self.populate_aritlog_table)
+        self.aritlog_controls_group_cb.stateChanged.connect(self.populateAritlogTable)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_zeroing_cb)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_looped_cb)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_group_cb)
@@ -159,7 +158,7 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         # aritlog result visualization
         self.aritlog_result_widget = QtGui.QWidget()
         aritlog_result_layout = QtGui.QVBoxLayout()
-        self.create_aritlog_table()
+        self._createAritlogTable()
         aritlog_result_layout.addWidget(self.aritlog_table)
         self.aritlog_result_widget.setLayout(aritlog_result_layout)
 
@@ -170,15 +169,15 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         aritlog_layout.addWidget(self.aritlog_result_widget)
         self.aritlog_widget.setLayout(aritlog_layout)
 
-    def create_aritlog_table(self):
+    def _createAritlogTable(self):
         """
         Create the result table for displaying results of the arithmetic/logic heuristic.
         """
         self.aritlog_table = QtGui.QTableWidget()
-        self.populate_aritlog_table()
-        self.aritlog_table.doubleClicked.connect(self.onAritlogResultDoubleClicked)
+        self.populateAritlogTable()
+        self.aritlog_table.doubleClicked.connect(self._onAritlogResultDoubleClicked)
 
-    def populate_aritlog_table(self):
+    def populateAritlogTable(self):
         """
         Populate the result table for the arithmetic/logic table.
         Called everytime control parameters or scan results change.
@@ -192,11 +191,11 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         is_nonzero = self.aritlog_controls_zeroing_cb.isChecked()
         is_looped = self.aritlog_controls_looped_cb.isChecked()
 
-        aritlog_blocks = self.ci.get_aritlog_blocks(ts.low / 100.0, ts.high / 100.0, bs.low, bs.high, na.low, \
+        aritlog_blocks = self.ci.getAritlogBlocks(ts.low / 100.0, ts.high / 100.0, bs.low, bs.high, na.low, \
             na.high, is_nonzero, is_looped)
 
-        self.set_aritlog_table_header_labels(is_grouped)
-        table_data = self.calculate_aritlog_table_data(aritlog_blocks, is_grouped)
+        self._setAritlogTableHeaderLabels(is_grouped)
+        table_data = self._calculateAritlogTableData(aritlog_blocks, is_grouped)
         row_count = len(table_data)
 
         self.aritlog_table.setColumnCount(len(self.aritlog_table_header_labels))
@@ -206,19 +205,19 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
 
         for row, data_item in enumerate(table_data):
             for column, column_name in enumerate(self.aritlog_table_header_labels):
-                tmp_item = self.get_aritlog_table_item(data_item, column, is_grouped)
+                tmp_item = self._getAritlogTableItem(data_item, column, is_grouped)
                 tmp_item.setFlags(tmp_item.flags() & ~self.QtCore.Qt.ItemIsEditable)
                 tmp_item.setTextAlignment(self.QtCore.Qt.AlignRight)
                 self.aritlog_table.setItem(row, column, tmp_item)
             self.aritlog_table.resizeRowToContents(row)
 
-        self.set_aritlog_result_label(self.aritlog_table.rowCount(), is_grouped)
+        self._setAritlogResultLabel(self.aritlog_table.rowCount(), is_grouped)
 
         self.aritlog_table.setSelectionMode(self.QtGui.QAbstractItemView.SingleSelection)
         self.aritlog_table.resizeColumnsToContents()
         self.aritlog_table.setSortingEnabled(True)
 
-    def set_aritlog_result_label(self, num_hits, is_grouped):
+    def _setAritlogResultLabel(self, num_hits, is_grouped):
         """
         Update the label displaying the current number of result entries (basic blocks or functions) after filtering.
         @param num_hits: the number to display
@@ -227,9 +226,9 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         @type is_grouped: boolean
         """
         self.aritlog_result_label.setText("%d %s from a total of %d blocks matched with the above settings." % (num_hits, \
-            (is_grouped and "functions" or "blocks"), self.ci.get_unfiltered_block_count()))
+            (is_grouped and "functions" or "blocks"), self.ci.getUnfilteredBlockCount()))
 
-    def calculate_aritlog_table_data(self, aritlog_blocks, is_grouped):
+    def _calculateAritlogTableData(self, aritlog_blocks, is_grouped):
         """
         Prepare data for display in the result table for the arithmetic/logic heuristic.
         If display is grouped to functions, data is transformed accordingly, otherwise the
@@ -254,7 +253,7 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         else:
             return aritlog_blocks
 
-    def set_aritlog_table_header_labels(self, is_grouped):
+    def _setAritlogTableHeaderLabels(self, is_grouped):
         """
         Set the header labels for the arithmetic/logic result table.
         @param is_grouped: decides whether header labels shall be created for functionally grouped or
@@ -267,7 +266,7 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
             self.aritlog_table_header_labels = ["Address", "Name", "Block Address", "# Instr", \
                 "Arithmetic/Logic Rating"]
 
-    def get_aritlog_table_item(self, data_item, column_index, is_grouped):
+    def _getAritlogTableItem(self, data_item, column_index, is_grouped):
         """
         Transform a data item for display in the arithmetic/logic result table
         @param data_item: the item to prepare for display
@@ -304,12 +303,12 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
                 tmp_item = self.NumberQTableWidgetItem("%d" % data_item.num_instructions)
         elif column_index == 4:
             if self.aritlog_controls_zeroing_cb.isChecked():
-                tmp_item = self.NumberQTableWidgetItem("%2.2f" % (100.0 * data_item.get_aritlog_rating(True)))
+                tmp_item = self.NumberQTableWidgetItem("%2.2f" % (100.0 * data_item.getAritlogRating(True)))
             else:
-                tmp_item = self.NumberQTableWidgetItem("%2.2f" % (100.0 * data_item.get_aritlog_rating()))
+                tmp_item = self.NumberQTableWidgetItem("%2.2f" % (100.0 * data_item.getAritlogRating()))
         return tmp_item
 
-    def onAritlogResultDoubleClicked(self, mi):
+    def _onAritlogResultDoubleClicked(self, mi):
         """
         The action to perform when an entry in the arithmetic/logic table is double clicked.
         Changes IDA View either to the function or basic block, depending on the column clicked.
@@ -325,7 +324,7 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
 # Signature GUI
 ################################################################################
 
-    def create_signature_widget(self):
+    def _createSignatureWidget(self):
         """
         Create the widget for the signature part.
         """
@@ -334,19 +333,19 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         self.signature_tree = QtGui.QTreeWidget()
         self.signature_tree.setColumnCount(1)
         self.signature_tree.setHeaderLabels(["Found Crypto Signatures"])
-        self.signature_tree.itemDoubleClicked.connect(self.SignatureTreeItemDoubleClicked)
+        self.signature_tree.itemDoubleClicked.connect(self._onSignatureTreeItemDoubleClicked)
         signature_layout.addWidget(self.signature_tree)
         self.signature_widget.setLayout(signature_layout)
 
-        self.populate_signature_tree()
+        self.populateSignatureTree()
 
-    def populate_signature_tree(self):
+    def populateSignatureTree(self):
         """
         populate the TreeWidget for display of the signature scanning results.
         """
         self.signature_tree.clear()
         self.signature_tree.setSortingEnabled(False)
-        signature_hits = self.ci.get_signature_hits()
+        signature_hits = self.ci.getSignatureHits()
         self.qtreewidgetitems_to_addresses = {}
 
         for signature in signature_hits:
@@ -365,9 +364,10 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
                     self.qtreewidgetitems_to_addresses[code_ref] = xref[0]
         self.signature_tree.setSortingEnabled(True)
 
-    def SignatureTreeItemDoubleClicked(self, item, column):
+    def _onSignatureTreeItemDoubleClicked(self, item, column):
         """
         The action to perform when an entry in the signature TreeWIdget is double clicked.
         Changes IDA View either to location clicked.
         """
-        self.ip.Jump(self.qtreewidgetitems_to_addresses[item])
+        if item in self.qtreewidgetitems_to_addresses:
+            self.ip.Jump(self.qtreewidgetitems_to_addresses[item])

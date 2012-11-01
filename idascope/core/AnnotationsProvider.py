@@ -26,10 +26,6 @@
 
 import json
 
-import idc
-import idaapi
-import idautils
-
 from helpers import JsonHelper
 
 annotations = {
@@ -60,15 +56,9 @@ annotations = {
 class AnnotationsProvider():
 
     def __init__(self):
-        # when calling from a PyQt object, the reference to the IDA python modules are not available.
-        # We add references to idc, idaapi, and idautils to our class to overcome this.
-        # 2012-07-01 TODO Figure out why the reference is broken and fix this.
-        self.idc = idc
-        self.idaapi = idaapi
-        self.idautils = idautils
         return
 
-    def load_config(self, config_filename):
+    def _loadConfig(self, config_filename):
         # TODO adapt implementation for this module
         config_file = open(config_filename, "r")
         config = config_file.read()
@@ -77,7 +67,7 @@ class AnnotationsProvider():
         self.semantic_definitions = parsed_config["semantic_definitions"]
         return
 
-    def get_annotations(self):
+    def getAnnotations(self):
         # return: function:
 
         # FLAGs that help to identify names:

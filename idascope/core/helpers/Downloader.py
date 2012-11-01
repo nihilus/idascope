@@ -28,6 +28,8 @@
 #
 ########################################################################
 
+# TODO: Make this finally multi-threaded.
+
 from PySide import QtCore
 import httplib
 
@@ -60,8 +62,9 @@ class Downloader(QtCore.QObject):
         self.ThreadedDownloader = ThreadedDownloader
         self._data = None
         self.download_thread = None
+        self.download_url = ""
 
-    def download_threaded(self, url):
+    def downloadThreaded(self, url):
         """
         Start a new download thread. Will notify via signal "downloadFinished" when done.
         @param url: The URL to download from.
@@ -82,6 +85,14 @@ class Downloader(QtCore.QObject):
         # clean up thread object
         self.download_worker.shutdown()
 
+    def setDownloadUrl(self, url):
+        # print "Downloader.setDownloadUrl(): called, setting download_url to: %s" % self.download_url
+        self.download_url = url
+
+    def downloadStoredUrl(self):
+        # print "Downloader.downloadStoredUrl(): called, download_url is: %s" % self.download_url
+        self.downloadSignalled(self.download_url)
+
     def download(self, url):
         """
         Start a blocking download. Will return the downloaded content when done.
@@ -89,6 +100,7 @@ class Downloader(QtCore.QObject):
         @type url: str
         @return: (str) the downloaded content.
         """
+        # print "Downloader.download(): type of received parameter: ", type(url)
         host = url[7:url.find("/", 7)]
         path = url[url.find("/", 7):]
         try:
@@ -107,11 +119,12 @@ class Downloader(QtCore.QObject):
             self._data = None
         return self._data
 
-    def download_signalled(self, url):
+    def downloadSignalled(self, url):
+        # print "Downloader.downloadSignalled(): called"
         self.download(url)
         self.downloadFinished.emit()
 
-    def get_data(self):
+    def getData(self):
         """
         Returns the previously downloaded data.
         """
@@ -119,6 +132,6 @@ class Downloader(QtCore.QObject):
 
     def _onThreadFinished(self):
         if self.download_thread:
-            self._data = self.download_thread.get_data()
+            self._data = self.download_thread.getData()
             self.download_thread = None
         self.downloadFinished.emit()

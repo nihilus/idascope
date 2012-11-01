@@ -68,8 +68,8 @@ class BoundsEditor(QtGui.QWidget):
 
         self._label_lo = QtGui.QLineEdit(self.format % self.low)
         self._label_lo.setMinimumSize(45, 0)
-        self._label_lo.editingFinished.connect(self.update_low_on_enter)
-        self._label_lo.returnPressed.connect(self.update_low_on_enter)
+        self._label_lo.editingFinished.connect(self._updateLowOnEnter)
+        self._label_lo.returnPressed.connect(self._updateLowOnEnter)
         panel.addWidget(self._label_lo)
 
         # The default size is a bit too big and probably doesn't need to grow.
@@ -82,16 +82,16 @@ class BoundsEditor(QtGui.QWidget):
         slider.setMaximum(10000)
         slider.setPageStep(1000)
         slider.setSingleStep(100)
-        slider.setLow(self._convert_to_slider(self.low))
-        slider.setHigh(self._convert_to_slider(self.high))
+        slider.setLow(self._convertToSlider(self.low))
+        slider.setHigh(self._convertToSlider(self.high))
 
-        slider.sliderMoved.connect(self.update_object_on_scroll)
+        slider.sliderMoved.connect(self._updateObjectOnScroll)
         panel.addWidget(slider)
 
         self._label_hi = QtGui.QLineEdit(self.format % self.high)
         self._label_hi.setMinimumSize(45, 0)
-        self._label_hi.editingFinished.connect(self.update_high_on_enter)
-        self._label_hi.returnPressed.connect(self.update_high_on_enter)
+        self._label_hi.editingFinished.connect(self._updateHighOnEnter)
+        self._label_hi.returnPressed.connect(self._updateHighOnEnter)
         panel.addWidget(self._label_hi)
 
         # The default size is a bit too big and probably doesn't need to grow.
@@ -99,7 +99,7 @@ class BoundsEditor(QtGui.QWidget):
         sh.setWidth(sh.width() / 2)
         self._label_hi.setMaximumSize(sh)
 
-    def update_low_on_enter(self):
+    def _updateLowOnEnter(self):
         try:
             try:
                 low = eval(unicode(self._label_lo.text()).strip())
@@ -112,17 +112,17 @@ class BoundsEditor(QtGui.QWidget):
                 low = int(low)
 
             if low > self.high:
-                low = self.high - self._step_size()
+                low = self.high - self._stepSize()
                 self._label_lo.setText(self.format % low)
 
-            self.slider.setLow(self._convert_to_slider(low))
+            self.slider.setLow(self._convertToSlider(low))
             self.low = low
 
             self.boundsChanged.emit()
         except:
             pass
 
-    def update_high_on_enter(self):
+    def _updateHighOnEnter(self):
         try:
             try:
                 high = eval(unicode(self._label_hi.text()).strip())
@@ -134,19 +134,19 @@ class BoundsEditor(QtGui.QWidget):
                 high = int(high)
 
             if high < self.low:
-                high = self.low + self._step_size()
+                high = self.low + self._stepSize()
                 self._label_hi.setText(self.format % high)
 
-            self.slider.setHigh(self._convert_to_slider(high))
+            self.slider.setHigh(self._convertToSlider(high))
             self.high = high
 
             self.boundsChanged.emit()
         except:
             pass
 
-    def update_object_on_scroll(self, pos):
-        low = self._convert_from_slider(self.slider.low())
-        high = self._convert_from_slider(self.slider.high())
+    def _updateObjectOnScroll(self, pos):
+        low = self._convertFromSlider(self.slider.low())
+        high = self._convertFromSlider(self.slider.high())
 
         if self.is_float:
             self.low = low
@@ -157,8 +157,8 @@ class BoundsEditor(QtGui.QWidget):
 
             # update the sliders to the int values or the sliders
             # will jiggle
-            self.slider.setLow(self._convert_to_slider(low))
-            self.slider.setHigh(self._convert_to_slider(high))
+            self.slider.setLow(self._convertToSlider(low))
+            self.slider.setHigh(self._convertToSlider(high))
 
         self._label_hi.setText(self.format % self.high)
         self._label_lo.setText(self.format % self.low)
@@ -166,35 +166,35 @@ class BoundsEditor(QtGui.QWidget):
     def update_editor(self):
         return
 
-    def _check_max_and_min(self):
+    def _checkMaxAndMin(self):
         # check if max & min have been defined:
         if self.max is None:
             self.max = self.high
         if self.min is None:
             self.min = self.low
 
-    def _step_size(self):
+    def _stepSize(self):
         slider_delta = self.slider.maximum() - self.slider.minimum()
         range_delta = self.max - self.min
         return float(range_delta) / slider_delta
 
-    def _convert_from_slider(self, slider_val):
-        self._check_max_and_min()
-        return self.min + slider_val * self._step_size()
+    def _convertFromSlider(self, slider_val):
+        self._checkMaxAndMin()
+        return self.min + slider_val * self._stepSize()
 
-    def _convert_to_slider(self, value):
-        self._check_max_and_min()
-        return self.slider.minimum() + (value - self.min) / self._step_size()
+    def _convertToSlider(self, value):
+        self._checkMaxAndMin()
+        return self.slider.minimum() + (value - self.min) / self._stepSize()
 
-    def _low_changed(self, low):
+    def _lowChanged(self, low):
         if self._label_lo is not None:
             self._label_lo.setText(self.format % low)
-        self.slider.setLow(self._convert_to_slider(low))
+        self.slider.setLow(self._convertToSlider(low))
 
-    def _high_changed(self, high):
+    def _highChanged(self, high):
         if self._label_hi is not None:
             self._label_hi.setText(self.format % high)
-        self.slider.setHigh(self._convert_to_slider(self.high))
+        self.slider.setHigh(self._convertToSlider(self.high))
 
     def mouseReleaseEvent(self, event):
         event.accept()

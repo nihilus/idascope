@@ -56,9 +56,9 @@ class IDAscopeConfiguration():
         self.winapi_shortcut = "ctrl+y"
         self.winapi_load_keyword_database = False
         self.winapi_online_enabled = False
-        self._load_config(config_filename)
+        self._loadConfig(config_filename)
 
-    def _load_config(self, config_filename):
+    def _loadConfig(self, config_filename):
         # extract the root file dir from the path to the config file
         if self.os_path_split is not None:
             self.root_file_path = self.os_path_split(config_filename)[0] + self.os.sep
@@ -71,15 +71,15 @@ class IDAscopeConfiguration():
         self.icon_file_path = self.root_file_path + "idascope" + self.os.sep + "icons" + self.os.sep
         # parse other paths
         self.config_path_sep = config["config_path_sep"]
-        self.semantics_file = self.root_file_path + self._normalize_path(config["paths"]["semantics_file"])
-        self.winapi_keywords_file = self.root_file_path + self._normalize_path(config["paths"]["winapi_keywords_file"])
-        self.winapi_rootdir = self._normalize_path(config["paths"]["winapi_rootdir"]) + self.os.sep
+        self.semantics_file = self.root_file_path + self._normalizePath(config["paths"]["semantics_file"])
+        self.winapi_keywords_file = self.root_file_path + self._normalizePath(config["paths"]["winapi_keywords_file"])
+        self.winapi_rootdir = self._normalizePath(config["paths"]["winapi_rootdir"]) + self.os.sep
         # widget related configurations
         self.winapi_shortcut = config["winapi"]["search_hotkey"]
         self.winapi_load_keyword_database = config["winapi"]["load_keyword_database"]
         self.winapi_online_enabled = config["winapi"]["online_enabled"]
 
-    def _normalize_path(self, path):
+    def _normalizePath(self, path):
         if self.os_path_normpath is None:
             # print "Skipping path normalization.", path
             return path

@@ -59,10 +59,10 @@ class DocumentationHelper():
         self.default_highlight_color = 0x3333FF
         self.color_state = "unknown"
         self.idascope_config = idascope_config
-        self._load_config(self.idascope_config.semantics_file)
+        self._loadConfig(self.idascope_config.semantics_file)
         return
 
-    def _load_config(self, config_filename):
+    def _loadConfig(self, config_filename):
         """
         Loads a semantic configuration file and generates a color map from the contained information.
         @param config_filename: filename of a semantic configuration file
@@ -74,10 +74,10 @@ class DocumentationHelper():
         self.default_neutral_color = int(parsed_config["default_neutral_color"], 16)
         self.default_base_color = int(parsed_config["default_base_color"], 16)
         self.default_highlight_color = int(parsed_config["default_highlight_color"], 16)
-        self.color_map = self._generate_color_map_from_definitions(parsed_config["semantic_definitions"])
+        self.color_map = self._generateColorMapFromDefinitions(parsed_config["semantic_definitions"])
         return
 
-    def _generate_color_map_from_definitions(self, definitions):
+    def _generateColorMapFromDefinitions(self, definitions):
         """
         Internal function to generate a color map from a semantic definitions config file.
         @param definitions: the defintions part of a semantic definitions config file.
@@ -91,7 +91,7 @@ class DocumentationHelper():
                 "highlight_color": int(definition["highlight_color"], 16)}
         return color_map
 
-    def uncolor_all(self):
+    def uncolorAll(self):
         """
         Uncolors all instructions of all segments by changing their color to white.
         """
@@ -100,10 +100,10 @@ class DocumentationHelper():
                 self.ida_proxy.SegEnd(seg_ea)):
                 for block in self.ida_proxy.FlowChart(self.ida_proxy.get_func(function_address)):
                     for head in self.ida_proxy.Heads(block.startEA, block.endEA):
-                        self.color_instruction(head, 0xFFFFFF, refresh=False)
+                        self.colorInstruction(head, 0xFFFFFF, refresh=False)
         self.ida_proxy.refresh_idaview_anyway()
 
-    def color_instruction(self, address, color, refresh=True):
+    def colorInstruction(self, address, color, refresh=True):
         """
         Colors the instruction at an address with the given color code.
         @param address: address of the instruction to color
@@ -117,7 +117,7 @@ class DocumentationHelper():
         if refresh:
             self.ida_proxy.refresh_idaview_anyway()
 
-    def color_basic_block(self, address, color, refresh=True):
+    def colorBasicBlock(self, address, color, refresh=True):
         """
         Colors the basic block containing a target address with the given color code.
         @param address: address an instruction in the basic block to color
@@ -131,9 +131,9 @@ class DocumentationHelper():
         for block in function_chart:
             if block.startEA <= address < block.endEA:
                 for head in self.ida_proxy.Heads(block.startEA, block.endEA):
-                    self.color_instruction(head, color, refresh)
+                    self.colorInstruction(head, color, refresh)
 
-    def get_next_color_scheme(self):
+    def getNextColorScheme(self):
         """
         get the next color scheme in the three-cycle "individual/mono/uncolored", where individual is semantic coloring
         @return: next state
@@ -147,28 +147,28 @@ class DocumentationHelper():
         else:
             return "individual"
 
-    def select_highlight_color(self, tag):
+    def selectHighlightColor(self, tag):
         """
         automatically chooses the highlight color for a tag based on the current color scheme
         @return: (int) a color code
         """
-        if self.get_next_color_scheme() == "uncolored":
+        if self.getNextColorScheme() == "uncolored":
             return 0xFFFFFF
-        elif self.get_next_color_scheme() == "mono":
+        elif self.getNextColorScheme() == "mono":
             return self.default_highlight_color
         else:
             return self.color_map[tag]["highlight_color"]
 
-    def select_base_color(self, tagged_addresses_in_block):
+    def selectBaseColor(self, tagged_addresses_in_block):
         """
         automatically chooses the base color for a block based on the current color scheme
         @param tagged_addresses_in_block: all tagged addresses in a basic block for which the color shall be chosen
         @type tagged_addresses_in_block: a list of tuples (int, str) containing pairs of instruction addresses and tags
         @return: (int) a color code
         """
-        if self.get_next_color_scheme() == "uncolored":
+        if self.getNextColorScheme() == "uncolored":
             return 0xFFFFFF
-        elif self.get_next_color_scheme() == "mono":
+        elif self.getNextColorScheme() == "mono":
             return self.default_base_color
         else:
             tags_in_block = [item[1] for item in tagged_addresses_in_block]
@@ -186,21 +186,21 @@ class DocumentationHelper():
         @type scan_result: a dictionary with key/value entries of the following form: (address, [FunctionContext])
         """
         for function_address in scan_result.keys():
-            tagged_addresses_in_function = scan_result[function_address].get_all_tagged_addresses()
+            tagged_addresses_in_function = scan_result[function_address].getAllTaggedAddresses()
             function_chart = self.ida_proxy.FlowChart(self.ida_proxy.get_func(function_address))
             for basic_block in function_chart:
                 tagged_addresses_in_block = [(addr, tagged_addresses_in_function[addr]) for addr in \
                     tagged_addresses_in_function.keys() if addr in xrange(basic_block.startEA, basic_block.endEA)]
                 if len(tagged_addresses_in_block) > 0:
-                    base_color = self.select_base_color(tagged_addresses_in_block)
-                    self.color_basic_block(basic_block.startEA, base_color, refresh=False)
+                    base_color = self.selectBaseColor(tagged_addresses_in_block)
+                    self.colorBasicBlock(basic_block.startEA, base_color, refresh=False)
                     for tagged_address in tagged_addresses_in_block:
-                        highlight_color = self.select_highlight_color(tagged_address[1])
-                        self.color_instruction(tagged_address[0], highlight_color, refresh=False)
-        self.color_state = self.get_next_color_scheme()
+                        highlight_color = self.selectHighlightColor(tagged_address[1])
+                        self.colorInstruction(tagged_address[0], highlight_color, refresh=False)
+        self.color_state = self.getNextColorScheme()
         self.ida_proxy.refresh_idaview_anyway()
 
-    def get_next_non_func_instruction(self, addr):
+    def getNextNonFuncInstruction(self, addr):
         next_instruction = addr
         while next_instruction != self.ida_proxy.BAD_ADDR:
             next_instruction = self.ida_proxy.find_not_func(next_instruction, self.ida_proxy.SEARCH_DOWN)
@@ -209,15 +209,25 @@ class DocumentationHelper():
                 return next_instruction
         return self.ida_proxy.BAD_ADDR
 
-    def convert_non_function_code(self):
-        # do a first run to define those areas that have a function prologue
+    def convertNonFunctionCode(self):
+        self.convertNonFunctionCodeWithPrologues()
+        # do a second run to define the rest
         next_instruction = self.ida_proxy.minEA()
         while next_instruction != self.ida_proxy.BAD_ADDR:
-            next_instruction = self.get_next_non_func_instruction(next_instruction)
+            next_instruction = self.getNextNonFuncInstruction(next_instruction)
+            print("[+] Fixed undefined code to function @ [%08x]" % \
+                (next_instruction))
+            self.ida_proxy.MakeFunction(next_instruction)
+        return
+
+    def convertNonFunctionCodeWithPrologues(self):
+        next_instruction = self.ida_proxy.minEA()
+        while next_instruction != self.ida_proxy.BAD_ADDR:
+            next_instruction = self.getNextNonFuncInstruction(next_instruction)
             if self.ida_proxy.GetMnem(next_instruction).startswith("push") and \
                 self.ida_proxy.GetOpType(next_instruction, 0) == 1 and \
                 self.ida_proxy.GetOperandValue(next_instruction, 0) == 5:
-                instruction_after_push = self.get_next_non_func_instruction(next_instruction)
+                instruction_after_push = self.getNextNonFuncInstruction(next_instruction)
                 if self.ida_proxy.GetMnem(instruction_after_push).startswith("mov") and \
                     self.ida_proxy.GetOpType(instruction_after_push, 0) == 1 and \
                     self.ida_proxy.GetOperandValue(instruction_after_push, 0) == 5 and \
@@ -226,11 +236,4 @@ class DocumentationHelper():
                         print("[+] Fixed undefined code with function prologue (push ebp; mov ebp, esp) to function " \
                             + "@ [%08x]" % (next_instruction))
                         self.ida_proxy.MakeFunction(next_instruction)
-        # do a second run to define the rest
-        next_instruction = self.ida_proxy.minEA()
-        while next_instruction != self.ida_proxy.BAD_ADDR:
-            next_instruction = self.get_next_non_func_instruction(next_instruction)
-            print("[+] Fixed undefined code to function @ [%08x]" % \
-                (next_instruction))
-            self.ida_proxy.MakeFunction(next_instruction)
-        return
+

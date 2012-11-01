@@ -30,6 +30,7 @@
 
 import json
 import re
+import time
 
 from helpers import JsonHelper
 
@@ -48,18 +49,19 @@ class SemanticIdentifier():
     def __init__(self, idascope_config):
         print ("[|] loading SemanticIdentifier")
         self.re = re
+        self.time = time
         self.ida_proxy = IdaProxy()
         self.FunctionContext = FunctionContext
         self.CallContext = CallContext
         self.ParameterContext = ParameterContext
         self.renaming_seperator = "_"
         self.semantic_definitions = []
-        self.last_result = {}
+        self.last_scan_result = {}
         self.idascope_config = idascope_config
-        self._load_config(self.idascope_config.semantics_file)
+        self._loadConfig(self.idascope_config.semantics_file)
         return
 
-    def _load_config(self, config_filename):
+    def _loadConfig(self, config_filename):
         """
         Loads a semantic configuration file and collects all definitions from it.
         @param config_filename: filename of a semantic configuration file
@@ -72,7 +74,7 @@ class SemanticIdentifier():
         self.semantic_definitions = parsed_config["semantic_definitions"]
         return
 
-    def calculate_number_of_basic_blocks_for_function_address(self, function_address):
+    def calculateNumberOfBasicBlocksForFunctionAddress(self, function_address):
         """
         Calculates the number of basic blocks for a given function by walking its FlowChart.
         @param function_address: function address to calculate the block count for
@@ -87,7 +89,7 @@ class SemanticIdentifier():
             pass
         return number_of_blocks
 
-    def get_number_of_basic_blocks_for_function_address(self, address):
+    def getNumberOfBasicBlocksForFunctionAddress(self, address):
         """
         returns the number of basic blocks for the function containing the queried address,
         based on the value stored in the last scan result.
@@ -98,65 +100,114 @@ class SemanticIdentifier():
         @return: (int) The number of blocks in th e function
         """
         number_of_blocks = 0
-        function_address = self.get_function_address_for_address(address)
-        if function_address in self.last_result.keys():
-            number_of_blocks = self.last_result[function_address].number_of_basic_blocks
+        function_address = self.getFunctionAddressForAddress(address)
+        if function_address in self.last_scan_result.keys():
+            number_of_blocks = self.last_scan_result[function_address].number_of_basic_blocks
         return number_of_blocks
 
     def scan(self):
         """
         Scan the whole IDB with all available techniques.
         """
-        self.scan_by_references()
-        self.scan_all_code()
+        self.scanByReferences()
+        self.scanDeep()
 
-    def scan_by_references(self):
+    def scanByReferences(self):
         """
         Scan by references to API names, based on the definitions loaded from the config file.
         This is highly efficient because we only touch places in the IDB that actually have references
         to our API names of interest.
         """
-        scan_result = {}
+        print ("  [/] SemanticIdentifier: Starting (fast) scan by references of function semantics.")
+        time_before = self.time.time()
+        self.last_scan_result = {}
         for semantic_group in self.semantic_definitions:
             semantic_group_tag = semantic_group["tag"]
             for api_name in semantic_group["api_names"]:
                 api_address = self.ida_proxy.LocByName(api_name)
-                code_ref_addrs = [ref for ref in self.ida_proxy.CodeRefsTo(api_address, 0)]
-                data_ref_addrs = [ref for ref in self.ida_proxy.DataRefsTo(api_address)]
-                ref_addrs = iter(set(code_ref_addrs).union(set(data_ref_addrs)))
-                for ref in ref_addrs:
-                    function_ctx = self.FunctionContext()
-                    function_ctx.function_address = self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(ref))
-                    function_ctx.function_name = self.ida_proxy.GetFunctionName(ref)
-                    function_ctx.has_dummy_name = (self.ida_proxy.GetFlags(function_ctx.function_address) & \
-                        self.ida_proxy.FF_LABL) > 0
-                    if function_ctx.function_address not in scan_result.keys():
-                        scan_result[function_ctx.function_address] = function_ctx
-                    else:
-                        function_ctx = scan_result[function_ctx.function_address]
+                for ref in self._getAllRefsTo(api_address):
+                    function_ctx = self._createFunctionContext(ref)
+                    function_ctx.has_tags = True
                     call_ctx = self.CallContext()
                     call_ctx.called_function_name = api_name
                     call_ctx.address_of_call = ref
                     call_ctx.called_address = api_address
                     call_ctx.tag = semantic_group_tag
-                    call_ctx.parameter_contexts = self._resolve_api_call(call_ctx)
+                    call_ctx.parameter_contexts = self._resolveApiCall(call_ctx)
                     function_ctx.call_contexts.append(call_ctx)
-        self.last_result = scan_result
+        print ("  [\\] Analysis took %3.2f seconds." % (self.time.time() - time_before))
 
-    def scan_all_code(self):
+    def _getAllRefsTo(self, addr):
+        code_ref_addrs = [ref for ref in self.ida_proxy.CodeRefsTo(addr, 0)]
+        data_ref_addrs = [ref for ref in self.ida_proxy.DataRefsTo(addr)]
+        return iter(set(code_ref_addrs).union(set(data_ref_addrs)))
+
+    def _getNumRefsTo(self, addr):
+        return sum([1 for ref in self._getAllRefsTo(addr)])
+
+    def _getAllRefsFrom(self, addr, code_only=False):
+        code_ref_addrs = [ref for ref in self.ida_proxy.CodeRefsFrom(addr, 0)]
+        data_ref_addrs = []
+        if code_only:
+            # only consider data references that lead to a call near/far (likely imports)
+            data_ref_addrs = [ref for ref in self.ida_proxy.DataRefsFrom(addr) if \
+                self.ida_proxy.GetFlags(ref) & (self.ida_proxy.FL_CN | self.ida_proxy.FL_CF)]
+        else:
+            data_ref_addrs = [ref for ref in self.ida_proxy.DataRefsFrom(addr)]
+        return iter(set(code_ref_addrs).union(set(data_ref_addrs)))
+
+    def _createFunctionContext(self, func_addr):
+        """
+        Create a FunctionContext for the given start address in the current scan result.
+        @param func_addr: address to create a FunctionContext for
+        @type func_addr: int
+        @return: (FunctionContext) A reference to the corresponding function context
+        """
+        function_ctx = None
+        if func_addr not in self.last_scan_result.keys():
+            function_ctx = self.FunctionContext()
+            function_ctx.function_address = self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(func_addr))
+            function_ctx.function_name = self.ida_proxy.GetFunctionName(func_addr)
+            function_ctx.has_dummy_name = (self.ida_proxy.GetFlags(function_ctx.function_address) & \
+                self.ida_proxy.FF_LABL) > 0
+            self.last_scan_result[function_ctx.function_address] = function_ctx
+        else:
+            function_ctx = self.last_scan_result[func_addr]
+        return function_ctx
+
+    def scanDeep(self):
         """
         Not implemented yet. In the long run, this function shall perform a full enumeration of all instructions,
         gathering information like number of instructions, number of basic blocks,
         references to and from functions etc.
         """
-        # for all functions, accumulate data for the following fields:
-        #   number_of_basic_blocks = 0
-        #   number_of_instructions = 0
-        #   number_of_xrefs_from = 0
-        #   number_of_xrefs_to = 0
-        pass
+        print ("  [/] SemanticIdentifier: Starting deep scan of function semantics.")
+        time_before = self.time.time()
+        for function_ea in self.ida_proxy.Functions():
+            function_chart = self.ida_proxy.FlowChart(self.ida_proxy.get_func(function_ea))
+            num_blocks = 0
+            num_instructions = 0
+            xrefs_from = []
+            calls_from = []
+            function_ctx = self._createFunctionContext(function_ea)
+            for block in function_chart:
+                num_blocks += 1
+                for instruction in self.ida_proxy.Heads(block.startEA, block.endEA):
+                    num_instructions += 1
+                    if self.ida_proxy.isCode(self.ida_proxy.GetFlags(instruction)):
+                        for ref in self._getAllRefsFrom(instruction):
+                            if self.ida_proxy.GetMnem(instruction) == "call":
+                                calls_from.append(ref)
+                            xrefs_from.append(ref)
+            function_ctx.calls_from.update(calls_from)
+            function_ctx.number_of_xrefs_to = self._getNumRefsTo(function_ea)
+            function_ctx.xrefs_from.update(xrefs_from)
+            function_ctx.number_of_xrefs_from = len(xrefs_from)
+            function_ctx.number_of_basic_blocks = num_blocks
+            function_ctx.number_of_instructions = num_instructions
+        print ("  [\\] Analysis took %3.2f seconds." % (self.time.time() - time_before))
 
-    def get_function_address_for_address(self, address):
+    def getFunctionAddressForAddress(self, address):
         """
         Get a function address containing the queried address.
         @param address: address to check the function address for
@@ -165,7 +216,7 @@ class SemanticIdentifier():
         """
         return self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(address))
 
-    def calculate_number_of_functions(self):
+    def calculateNumberOfFunctions(self):
         """
         Calculate the number of functions in all segments.
         @return: (int) the number of functions found.
@@ -176,33 +227,39 @@ class SemanticIdentifier():
                 number_of_functions += 1
         return number_of_functions
 
-    def get_identified_function_addresses(self):
+    def getFunctionAddresses(self, dummy=False, tag=False):
         """
         Get all function address that have been covered by the last scanning.
+        @param dummy_only: only return functions with dummy names
+        @type dummy_only: bool
+        @param tag_only: only return tag functions
+        @type tag_only: bool
         @return: (list of int) The addresses of covered functions.
         """
-        return self.last_result.keys()
+        if tag and dummy:
+            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name and \
+                self.last_scan_result[addr].has_tags]
+        elif tag:
+            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_tags]
+        elif dummy:
+            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name]
+        else:
+            return self.last_scan_result.keys()
+        return []
 
-    def get_identified_dummy_function_addresses(self):
-        """
-        Get all function address with a dummy name that have been covered by the last scanning.
-        @return: (list of int) The addresses of covered functions.
-        """
-        return [addr for addr in self.last_result.keys() if self.last_result[addr].has_dummy_name]
-
-    def get_tags(self):
+    def getTags(self):
         """
         Get all the tags that have been covered by the last scanning.
         @return (list of str) The tags found.
         """
         tags = []
-        for function_address in self.last_result.keys():
-            for call_ctx in self.last_result[function_address].call_contexts:
+        for function_address in self.last_scan_result.keys():
+            for call_ctx in self.last_scan_result[function_address].call_contexts:
                 if call_ctx.tag not in tags:
                     tags.append(call_ctx.tag)
         return tags
 
-    def get_tags_for_function_address(self, address):
+    def getTagsForFunctionAddress(self, address):
         """
         Get all tags found for the function containing the queried address.
         @param address: address in the target function
@@ -210,14 +267,14 @@ class SemanticIdentifier():
         @return: (list of str) The tags for the function containing the queried address
         """
         tags = []
-        function_address = self.get_function_address_for_address(address)
-        if function_address in self.last_result.keys():
-            for call_ctx in self.last_result[function_address].call_contexts:
+        function_address = self.getFunctionAddressForAddress(address)
+        if function_address in self.last_scan_result.keys():
+            for call_ctx in self.last_scan_result[function_address].call_contexts:
                 if call_ctx.tag not in tags:
                     tags.append(call_ctx.tag)
         return tags
 
-    def get_tag_count_for_function_address(self, tag, address):
+    def getTagCountForFunctionAddress(self, tag, address):
         """
         Get the number of occurrences for a certain tag for the function containing the queried address.
         @param tag: a tag as included in semantic definitions
@@ -226,42 +283,42 @@ class SemanticIdentifier():
         @type address: int
         @return: (int) The number of occurrences for this tag in the function
         """
-        function_address = self.get_function_address_for_address(address)
+        function_address = self.getFunctionAddressForAddress(address)
         tag_count = 0
-        if tag in self.get_tags_for_function_address(function_address):
-            for call_ctx in self.last_result[function_address].call_contexts:
+        if tag in self.getTagsForFunctionAddress(function_address):
+            for call_ctx in self.last_scan_result[function_address].call_contexts:
                 if call_ctx.tag == tag:
                     tag_count += 1
         return tag_count
 
-    def get_tagged_apis_for_function_address(self, address):
+    def getTaggedApisForFunctionAddress(self, address):
         """
         Get all call contexts for the function containing the queried address.
         @param address: address in the target function
         @type address: int
         @return: (list of CallContext data objects) The call contexts identified by the scanning of this function
         """
-        function_address = self.get_function_address_for_address(address)
-        if function_address in self.last_result.keys():
-            all_call_ctx = self.last_result[function_address].call_contexts
+        function_address = self.getFunctionAddressForAddress(address)
+        if function_address in self.last_scan_result.keys():
+            all_call_ctx = self.last_scan_result[function_address].call_contexts
             return [call_ctx for call_ctx in all_call_ctx if call_ctx.tag != ""]
 
-    def get_address_tag_pairs_ordered_by_function(self):
+    def getAddressTagPairsOrderedByFunction(self):
         """
         Get all call contexts for all functions
         @return: a dictionary with key/value entries of the following form: (function_address,
                  dict((call_address, tag)))
         """
         functions_and_tags = {}
-        for function in self.get_identified_function_addresses():
-            call_contexts = self.get_tagged_apis_for_function_address(function)
+        for function in self.getIdentifiedFunctionAddresses():
+            call_contexts = self.getTaggedApisForFunctionAddress(function)
             if function not in functions_and_tags.keys():
                 functions_and_tags[function] = {}
             for call_ctx in call_contexts:
                 functions_and_tags[function][call_ctx.address_of_call] = call_ctx.tag
         return functions_and_tags
 
-    def get_functions_to_rename(self):
+    def getFunctionsToRename(self):
         """
         Get all functions that can be renamed according to the last scan result. Only functions with the standard
         IDA name I{sub_[0-9A-F]+} will be considered for renaming.
@@ -269,29 +326,30 @@ class SemanticIdentifier():
                  ("new_function_name", str), ("function_address", int)
         """
         functions_to_rename = []
-        for function_address_to_tag in self.last_result.keys():
-            new_function_name = self.last_result[function_address_to_tag].function_name
+        for function_address_to_tag in self.last_scan_result.keys():
+            new_function_name = self.last_scan_result[function_address_to_tag].function_name
             # has the function still a dummy name?
             if self.ida_proxy.GetFlags(function_address_to_tag) & self.ida_proxy.FF_LABL > 0:
-                tags_for_function = self.get_tags_for_function_address(function_address_to_tag)
+                tags_for_function = self.getTagsForFunctionAddress(function_address_to_tag)
                 for tag in sorted(tags_for_function, reverse=True):
                     if tag not in new_function_name:
                         new_function_name = tag + self.renaming_seperator + new_function_name
                 functions_to_rename.append({"old_function_name": \
-                    self.last_result[function_address_to_tag].function_name, "new_function_name": \
+                    self.last_scan_result[function_address_to_tag].function_name, "new_function_name": \
                     new_function_name, "function_address": function_address_to_tag})
         return functions_to_rename
 
-    def rename_functions(self):
+    def renameFunctions(self):
         """
         Perform the renaming of functions according to the last scan result.
         """
-        for function in self.get_functions_to_rename():
+        for function in self.getFunctionsToRename():
             if function["old_function_name"] == self.ida_proxy.GetFunctionName(function["function_address"]):
                 self.ida_proxy.MakeNameEx(function["function_address"], function["new_function_name"], \
                     self.ida_proxy.SN_NOWARN)
 
-    def rename_potential_wrapper_functions(self):
+    def renamePotentialWrapperFunctions(self):
+        num_wrappers_renamed = 0
         for seg_ea in self.ida_proxy.Segments():
             for func_ea in self.ida_proxy.Functions(self.ida_proxy.SegStart(seg_ea), self.ida_proxy.SegEnd(seg_ea)):
                 if (self.ida_proxy.GetFlags(func_ea) & 0x8000) != 0:
@@ -320,7 +378,7 @@ class SemanticIdentifier():
                             while rval == False:
                                 if name_suffix > 40:
                                     print("[!] Potentially more than 50 wrappers for function %s, " \
-                                        "please report IDB" % w_name)
+                                        "please report this IDB ;)" % w_name)
                                     break
                                 if self.ida_proxy.Demangle(w_name, \
                                     self.ida_proxy.GetLongPrm(self.ida_proxy.INF_SHORT_DN)) != w_name:
@@ -333,9 +391,12 @@ class SemanticIdentifier():
                                 rval = self.ida_proxy.MakeNameEx(func_ea, f_name, \
                                     self.ida_proxy.SN_NOCHECK | self.ida_proxy.SN_NOWARN)
                             if rval == True:
-                                print("[+] Identified and renamed potential wrapper @ [%08x] to [%s]" % (func_ea, f_name))
+                                print("[+] Identified and renamed potential wrapper @ [%08x] to [%s]" % \
+                                    (func_ea, f_name))
+                                num_wrappers_renamed += 1
+        print("[+] Renamed %d functions with their potentially wrapped name." % num_wrappers_renamed)
 
-    def get_parameters_for_call_address(self, call_address):
+    def getParametersForCallAddress(self, call_address):
         """
         Get the parameters for the given address of a function call.
         @param call_address: address of the target call to inspect
@@ -343,13 +404,13 @@ class SemanticIdentifier():
         @return: a list of ParameterContext data objects.
         """
         target_function_address = self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(call_address))
-        all_tagged_apis_in_function = self.get_tagged_apis_for_function_address(target_function_address)
+        all_tagged_apis_in_function = self.getTaggedApisForFunctionAddress(target_function_address)
         for api in all_tagged_apis_in_function:
             if api.address_of_call == call_address:
-                return self._resolve_api_call(api)
+                return self._resolveApiCall(api)
         return []
 
-    def _resolve_api_call(self, call_context):
+    def _resolveApiCall(self, call_context):
         """
         Resolve the parameters for an API calls based on a call context for this API call.
         @param call_context: the call context to get the parameter information for
@@ -357,21 +418,21 @@ class SemanticIdentifier():
         @return: a list of ParameterContext data objects.
         """
         resolved_api_parameters = []
-        api_signature = self._get_api_signature(call_context.called_function_name)
-        push_addresses = self._get_push_addresses_before_target_address(call_context.address_of_call)
-        resolved_api_parameters = self._match_push_addresses_to_signature(push_addresses, api_signature)
+        api_signature = self._getApiSignature(call_context.called_function_name)
+        push_addresses = self._getPushAddressesBeforeTargetAddress(call_context.address_of_call)
+        resolved_api_parameters = self._matchPushAddressesToSignature(push_addresses, api_signature)
         return resolved_api_parameters
 
-    def _match_push_addresses_to_signature(self, push_addresses, api_signature):
+    def _matchPushAddressesToSignature(self, push_addresses, api_signature):
         """
-        Combine the results of I{_get_push_addresses_before_target_address} and I{_get_api_signature} in order to
+        Combine the results of I{_getPushAddressesBeforeTargetAddress} and I{_getApiSignature} in order to
         produce a list of ParameterContext data objects.
         @param push_addresses: the identified push addresses before a function call that shall be matched to a function
                                signature
         @type push_addresses: a list of int
         @param api_signature: information about a function definition with
                               parameter names, types, and so on.
-        @type api_signature: a dictionary with the layout as returned by I{_get_api_signature}
+        @type api_signature: a dictionary with the layout as returned by I{_getApiSignature}
         @return: a list of ParameterContext data objects.
         """
         matched_parameters = []
@@ -398,7 +459,7 @@ class SemanticIdentifier():
             matched_parameters.append(param_ctx)
         return matched_parameters
 
-    def _get_api_signature(self, api_name):
+    def _getApiSignature(self, api_name):
         """
         Get the signature for a function by using IDA's I{GetType()}. The string is then parsed with a Regex and
         returned as a dictionary.
@@ -421,15 +482,15 @@ class SemanticIdentifier():
                     type_and_name["name"] = parameter[parameter.rfind(" "):].strip()
                     api_signature["parameters"].append(type_and_name)
         else:
-            print ("[-] SemanticIdentifier._get_api_signature: No API/function signature for \"%s\" @ 0x%x available.") \
-                % (api_name, api_location)
+            print ("[-] SemanticIdentifier._getApiSignature: No API/function signature for \"%s\" @ 0x%x available. " \
+            + "(non-critical)") % (api_name, api_location)
         # TODO:
         # here should be a check for the calling convention
         # currently, list list is simply reversed to match the order parameters are pushed to the stack
         api_signature["parameters"].reverse()
         return api_signature
 
-    def _get_push_addresses_before_target_address(self, address):
+    def _getPushAddressesBeforeTargetAddress(self, address):
         """
         Get the addresses of all push instructions in the basic block preceding the given address.
         @param address: address to get the push addresses for.
@@ -447,19 +508,36 @@ class SemanticIdentifier():
                         break
         return push_addresses
 
-    def get_last_result(self):
+    def createFunctionGraph(self, func_address):
+        graph = {"root": func_address, "nodes": {}}
+        unexplored = set()
+        if func_address in self.last_scan_result.keys():
+            graph["nodes"][func_address] = self.last_scan_result[func_address].calls_from
+            unexplored = set(self.last_scan_result[func_address].calls_from)
+            while len(unexplored) > 0:
+                current_function = unexplored.pop()
+                if current_function in graph["nodes"].keys() or current_function not in self.last_scan_result.keys():
+                    continue
+                else:
+                    graph["nodes"][current_function] = self.last_scan_result[current_function].calls_from
+                    new_functions = \
+                        set(self.last_scan_result[current_function].calls_from).difference(set(graph["nodes"].keys()))
+                    unexplored.update(new_functions)
+        return graph
+
+    def getLastScanResult(self):
         """
-        Get the last scan result as retrieved by I{scan_by_references}.
+        Get the last scan result as retrieved by I{scanByReferences}.
         @return: a dictionary with key/value entries of the following form: (function_address, FunctionContext)
         """
-        return self.last_result
+        return self.last_scan_result
 
-    def print_last_result(self):
+    def printLastScanResult(self):
         """
         nicely print the last scan result (mostly used for debugging)
         """
-        for function_address in self.last_result.keys():
+        for function_address in self.last_scan_result.keys():
             print ("0x%x - %s -> ") % (function_address, self.ida_proxy.GetFunctionName(function_address)) \
-                + ", ".join(self.get_tags_for_function_address(function_address))
-            for call_ctx in self.last_result[function_address].call_contexts:
+                + ", ".join(self.getTagsForFunctionAddress(function_address))
+            for call_ctx in self.last_scan_result[function_address].call_contexts:
                 print ("    0x%x - %s (%s)") % (call_ctx.address_of_call, call_ctx.called_function_name, call_ctx.tag)

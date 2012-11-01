@@ -59,16 +59,16 @@ class IDAscopeForm(PluginForm):
 
     def __init__(self):
         super(IDAscopeForm, self).__init__()
-        banner =   "#############################################\n" \
-                 + "  ___ ____    _                             \n" \
-                 + " |_ _|  _ \  / \   ___  ___ ___  _ __   ___ \n" \
-                 + "  | || | | |/ _ \ / __|/ __/ _ \\| '_ \\ / _ \\\n" \
-                 + "  | || |_| / ___ \\\\__ \\ (_| (_) | |_) |  __/\n" \
-                 + " |___|____/_/   \\_\\___/\\___\\___/| .__/ \\___|\n" \
-                 + "                                |_|         \n" \
-                 + "#############################################\n" \
-                 + " by Daniel Plohmann and Alexander Hanel      \n" \
-                 + "#############################################\n"
+        banner = "#############################################\n" \
+               + "  ___ ____    _                             \n" \
+               + " |_ _|  _ \  / \   ___  ___ ___  _ __   ___ \n" \
+               + "  | || | | |/ _ \ / __|/ __/ _ \\| '_ \\ / _ \\\n" \
+               + "  | || |_| / ___ \\\\__ \\ (_| (_) | |_) |  __/\n" \
+               + " |___|____/_/   \\_\\___/\\___\\___/| .__/ \\___|\n" \
+               + "                                |_|         \n" \
+               + "#############################################\n" \
+               + " by Daniel Plohmann and Alexander Hanel      \n" \
+               + "#############################################\n"
         print banner
         print ("[+] Loading simpliFiRE.IDAscope")
         global HOTKEYS
@@ -86,11 +86,11 @@ class IDAscopeForm(PluginForm):
         time_before = time.time()
         print ("[/] setting up shared modules...")
         self.semantic_identifier = SemanticIdentifier(self.config)
-        self.semantic_identifier.scan()
+        self.semantic_identifier.scanByReferences()
+        self.crypto_identifier = CryptoIdentifier()
         self.documentation_helper = DocumentationHelper(self.config)
         self.winapi_provider = WinApiProvider(self.config)
         self.ida_proxy = IdaProxy()
-        self.crypto_identifier = CryptoIdentifier()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
 
     def setup_widgets(self):

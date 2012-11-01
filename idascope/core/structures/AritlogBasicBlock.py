@@ -78,7 +78,7 @@ class AritlogBasicBlock():
         self.aritlog_rating = -1
         self.nonzeroing_aritlog_rating = -1
 
-    def get_aritlog_rating(self, is_nonzeroing_rating=False):
+    def getAritlogRating(self, is_nonzeroing_rating=False):
         """
         Calculates and returns the rating for this basic block
         @param is_nonzeroing_rating: determines whether zeroing instructions like xor eax, eax
@@ -97,7 +97,7 @@ class AritlogBasicBlock():
         except ZeroDivisionError:
             return 0
 
-    def update_instruction_count(self, instruction, has_identical_operands):
+    def updateInstructionCount(self, instruction, has_identical_operands):
         """
         Update the instruction count for this basic block.
         @param instruction: The mnemonic for a instruction of this block, as returned by IDA's I{GetMnem()}'
