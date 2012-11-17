@@ -37,6 +37,7 @@ import re
 from IdaProxy import IdaProxy
 from helpers.PatternManager import PatternManager
 from helpers.GraphHelper import GraphHelper
+import helpers.Misc
 
 from idascope.core.structures.Segment import Segment
 from idascope.core.structures.AritlogBasicBlock import AritlogBasicBlock
@@ -213,7 +214,7 @@ class CryptoIdentifier():
                 segment.end_ea = self.ida_proxy.SegEnd(segment_ea)
                 segment.name = self.ida_proxy.SegName(segment_ea)
                 buf = ""
-                for ea in xrange(segment_ea, self.ida_proxy.SegEnd(segment_ea)):
+                for ea in helpers.Misc.lrange(segment_ea, self.ida_proxy.SegEnd(segment_ea)):
                     buf += chr(self.ida_proxy.get_byte(ea))
                 segment.data = buf
                 segments.append(segment)
