@@ -359,6 +359,10 @@ class SemanticIdentifier():
                     if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x100:
                         nr_calls = 0
                         for i_ea in self.ida_proxy.FuncItems(func_ea):
+                            if self.ida_proxy.GetMnem(i_ea) == 'jmp' \
+                                and (func_ea > self.ida_proxy.GetOperandValue(i_ea,0) \
+                                    or func_end < self.ida_proxy.GetOperandValue(i_ea,0)):
+                                   nr_calls = nr_calls + 2
                             if self.ida_proxy.GetMnem(i_ea) == 'call':
                                 nr_calls += 1
                                 if nr_calls > 1:
