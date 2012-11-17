@@ -384,13 +384,13 @@ class SemanticIdentifier():
                                     print("[!] Potentially more than 50 wrappers for function %s, " \
                                         "please report this IDB ;)" % w_name)
                                     break
-                                if self.ida_proxy.Demangle(w_name, \
-                                    self.ida_proxy.GetLongPrm(self.ida_proxy.INF_SHORT_DN)) != w_name:
+                                demangled_name = self.ida_proxy.Demangle(w_name, self.ida_proxy.GetLongPrm(self.ida_proxy.INF_SHORT_DN))
+                                if demangled_name != None and demangled_name != w_name:
                                     f_name = w_name + '_' + str(name_suffix)
                                 elif name_suffix > 0:
-                                    f_name = w_name + '__w' + str(name_suffix)
+                                    f_name = w_name + '_w' + str(name_suffix)
                                 else:
-                                    f_name = w_name + '__w'
+                                    f_name = w_name + '_w'
                                 name_suffix += 1
                                 rval = self.ida_proxy.MakeNameEx(func_ea, f_name, \
                                     self.ida_proxy.SN_NOCHECK | self.ida_proxy.SN_NOWARN)
