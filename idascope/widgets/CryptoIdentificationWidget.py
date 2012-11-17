@@ -141,13 +141,17 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         self.aritlog_controls_zeroing_cb = QtGui.QCheckBox("Exclude Zeroing")
         self.aritlog_controls_zeroing_cb.setCheckState(self.QtCore.Qt.Checked)
         self.aritlog_controls_zeroing_cb.stateChanged.connect(self.populateAritlogTable)
-        self.aritlog_controls_looped_cb = QtGui.QCheckBox("Looped Blocks only")
+        self.aritlog_controls_looped_cb = QtGui.QCheckBox("Any Loops")
         self.aritlog_controls_looped_cb.setCheckState(self.QtCore.Qt.Checked)
         self.aritlog_controls_looped_cb.stateChanged.connect(self.populateAritlogTable)
+        self.aritlog_controls_trivially_looped_cb = QtGui.QCheckBox("Trivial Loops")
+        self.aritlog_controls_trivially_looped_cb.setCheckState(self.QtCore.Qt.Checked)
+        self.aritlog_controls_trivially_looped_cb.stateChanged.connect(self.populateAritlogTable)
         self.aritlog_controls_group_cb = QtGui.QCheckBox("Group by Functions")
         self.aritlog_controls_group_cb.stateChanged.connect(self.populateAritlogTable)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_zeroing_cb)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_looped_cb)
+        aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_trivially_looped_cb)
         aritlog_controls_aggregator_layout.addWidget(self.aritlog_controls_group_cb)
         self.aritlog_controls_aggregator_widget.setLayout(aritlog_controls_aggregator_layout)
 
@@ -182,6 +186,7 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         Populate the result table for the arithmetic/logic table.
         Called everytime control parameters or scan results change.
         """
+        self._updateLoopCheckboxes()
         self.aritlog_table.clear()
         self.aritlog_table.setSortingEnabled(False)
         ts = self.aritlog_controls_threshold_editor
@@ -190,9 +195,10 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         is_grouped = self.aritlog_controls_group_cb.isChecked()
         is_nonzero = self.aritlog_controls_zeroing_cb.isChecked()
         is_looped = self.aritlog_controls_looped_cb.isChecked()
+        is_trivially_looped = self.aritlog_controls_trivially_looped_cb.isChecked()
 
         aritlog_blocks = self.ci.getAritlogBlocks(ts.low / 100.0, ts.high / 100.0, bs.low, bs.high, na.low, \
-            na.high, is_nonzero, is_looped)
+            na.high, is_nonzero, is_looped, is_trivially_looped)
 
         self._setAritlogTableHeaderLabels(is_grouped)
         table_data = self._calculateAritlogTableData(aritlog_blocks, is_grouped)
@@ -319,6 +325,13 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         elif mi.column() >= 2:
             clicked_address = self.aritlog_table.item(mi.row(), 2).text()
         self.ip.Jump(int(clicked_address, 16))
+
+    def _updateLoopCheckboxes(self):
+        is_trivially_looped = self.aritlog_controls_trivially_looped_cb.isChecked()
+        if is_trivially_looped:
+            self.aritlog_controls_looped_cb.setEnabled(False)
+        else:
+            self.aritlog_controls_looped_cb.setEnabled(True)
 
 ################################################################################
 # Signature GUI

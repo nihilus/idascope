@@ -122,13 +122,15 @@ class CryptoIdentifier():
                 function_dgraph[current_block.startEA] = succeeding_blocks
                 # add trivial loops
                 if current_block.startEA in succeeding_blocks:
+                    block.is_contained_in_trivial_loop = True
                     blocks_in_loops.update([current_block.startEA])
             # perform Tarjan's algorithm to identify strongly connected components (= loops) in the function graph
             graph_helper = self.GraphHelper()
             strongly_connected = graph_helper.calculateStronglyConnectedComponents(function_dgraph)
             non_trivial_loops = [component for component in strongly_connected if len(component) > 1]
             for component in non_trivial_loops:
-                blocks_in_loops.update(non_trivial_loops)
+                for block in component:
+                    blocks_in_loops.update([block])
             for block in function_blocks:
                 if block.start_ea in blocks_in_loops:
                     block.is_contained_in_loop = True
@@ -139,7 +141,7 @@ class CryptoIdentifier():
         return self.getAritlogBlocks(self.low_rating_threshold, self.high_rating_threshold,
             self.low_instruction_threshold, self.high_instruction_threshold,
             self.low_call_threshold, self.high_call_threshold,
-            False, False)
+            False, False, False)
 
     def _updateThresholds(self, min_rating, max_rating, min_instr, max_instr, min_call, max_call):
         """
@@ -173,7 +175,7 @@ class CryptoIdentifier():
             self.high_call_threshold = max_call
 
     def getAritlogBlocks(self, min_rating, max_rating, min_instr, max_instr, min_api, max_api, is_nonzero, \
-        is_looped):
+        is_looped, is_trivially_looped):
         """
         get all blocks that are within the limits specified by the heuristic parameters.
         parameters are the same as in function "_updateThresholds" except
@@ -188,7 +190,8 @@ class CryptoIdentifier():
             (self.high_rating_threshold >= block.getAritlogRating(is_nonzero) >= self.low_rating_threshold) and
             (self.high_instruction_threshold >= block.num_instructions >= self.low_instruction_threshold) and
             (self.high_call_threshold >= block.num_calls_in_function >= self.low_call_threshold) and
-            (not is_looped or block.is_contained_in_loop)]
+            (not is_looped or block.is_contained_in_loop) and
+            (not is_trivially_looped or block.is_contained_in_trivial_loop)]
 
     def getUnfilteredBlockCount(self):
         """

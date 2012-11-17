@@ -71,6 +71,7 @@ class AritlogBasicBlock():
         self.start_ea = start_ea
         self.end_ea = end_ea
         self.is_contained_in_loop = False
+        self.is_contained_in_trivial_loop = False
         self.num_instructions = 0
         self.num_log_arit_instructions = 0
         self.num_zeroing_instructions = 0

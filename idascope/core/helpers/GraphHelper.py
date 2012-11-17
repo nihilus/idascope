@@ -28,8 +28,8 @@ class GraphHelper():
         for function_addr in graph["nodes"].keys():
             refs = graph["nodes"][function_addr]
             print "0x%x (%s)" % (function_addr, self.ida_proxy.GetFunctionName(function_addr))
-            # for ref in refs:
-            #     print "  > 0x%x (%s)" % (ref, self.ida_proxy.GetFunctionName(ref))
+            for ref in refs:
+                print "  > 0x%x (%s)" % (ref, self.ida_proxy.GetFunctionName(ref))
 
     def calcAvgOutDegree(self, graph):
         out_refs = 0

@@ -6,7 +6,8 @@
 # All rights reserved.
 ########################################################################
 #
-#  a QThread for downloading web content.
+#  Collection of possibly unrelated,
+#  miscellaneous functions that are useful.
 #
 ########################################################################
 #
