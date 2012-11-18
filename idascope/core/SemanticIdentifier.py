@@ -356,7 +356,7 @@ class SemanticIdentifier():
                     # dummy function check if wrapper material
                     func_end = self.ida_proxy.GetFunctionAttr(func_ea, self.ida_proxy.FUNCATTR_END)
                     # wrappers are likely short
-                    if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x100:
+                    if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x40:
                         nr_calls = 0
                         for i_ea in self.ida_proxy.FuncItems(func_ea):
                             if self.ida_proxy.GetMnem(i_ea) == 'jmp' \
@@ -364,13 +364,18 @@ class SemanticIdentifier():
                                     or func_end < self.ida_proxy.GetOperandValue(i_ea,0)):
                                    nr_calls = nr_calls + 2
                             if self.ida_proxy.GetMnem(i_ea) == 'call':
+                                # checks if call is not memory reference
+                                if self.ida_proxy.GetOpType(i_ea,0) != 2 \
+                                    and self.ida_proxy.GetOpType(i_ea,0) != 6 \
+                                        and self.ida_proxy.GetOpType(i_ea,0) != 7:
+                                    nr_calls = nr_calls + 2
+                                
                                 nr_calls += 1
                                 if nr_calls > 1:
                                     break
                                 call_dst = list(self.ida_proxy.CodeRefsFrom(i_ea, 0))
                                 if len(call_dst) == 0:
                                     continue
-
                                 call_dst = call_dst[0]
                                 w_name = ''
                                 if (self.ida_proxy.GetFunctionFlags(call_dst) & self.ida_proxy.FUNC_LIB) != 0 or \
