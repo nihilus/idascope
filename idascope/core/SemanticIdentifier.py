@@ -126,7 +126,7 @@ class SemanticIdentifier():
             for api_name in semantic_group["api_names"]:
                 api_address = self.ida_proxy.LocByName(api_name)
                 for ref in self._getAllRefsTo(api_address):
-                    function_ctx = self._createFunctionContext(ref)
+                    function_ctx = self._getFunctionContext(ref)
                     function_ctx.has_tags = True
                     call_ctx = self.CallContext()
                     call_ctx.called_function_name = api_name
@@ -156,23 +156,24 @@ class SemanticIdentifier():
             data_ref_addrs = [ref for ref in self.ida_proxy.DataRefsFrom(addr)]
         return iter(set(code_ref_addrs).union(set(data_ref_addrs)))
 
-    def _createFunctionContext(self, func_addr):
+    def _getFunctionContext(self, addr):
         """
-        Create a FunctionContext for the given start address in the current scan result.
+        Create or return an existing FunctionContext for the given address in the current scan result.
         @param func_addr: address to create a FunctionContext for
         @type func_addr: int
         @return: (FunctionContext) A reference to the corresponding function context
         """
         function_ctx = None
-        if func_addr not in self.last_scan_result.keys():
+        function_address = self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(addr))
+        if function_address not in self.last_scan_result.keys():
             function_ctx = self.FunctionContext()
-            function_ctx.function_address = self.ida_proxy.LocByName(self.ida_proxy.GetFunctionName(func_addr))
-            function_ctx.function_name = self.ida_proxy.GetFunctionName(func_addr)
-            function_ctx.has_dummy_name = (self.ida_proxy.GetFlags(function_ctx.function_address) & \
+            function_ctx.function_address = function_address
+            function_ctx.function_name = self.ida_proxy.GetFunctionName(function_address)
+            function_ctx.has_dummy_name = (self.ida_proxy.GetFlags(function_address) & \
                 self.ida_proxy.FF_LABL) > 0
             self.last_scan_result[function_ctx.function_address] = function_ctx
         else:
-            function_ctx = self.last_scan_result[func_addr]
+            function_ctx = self.last_scan_result[function_address]
         return function_ctx
 
     def scanDeep(self):
@@ -189,7 +190,7 @@ class SemanticIdentifier():
             num_instructions = 0
             xrefs_from = []
             calls_from = []
-            function_ctx = self._createFunctionContext(function_ea)
+            function_ctx = self._getFunctionContext(function_ea)
             for block in function_chart:
                 num_blocks += 1
                 for instruction in self.ida_proxy.Heads(block.startEA, block.endEA):
@@ -369,7 +370,7 @@ class SemanticIdentifier():
                                     and self.ida_proxy.GetOpType(i_ea,0) != 6 \
                                         and self.ida_proxy.GetOpType(i_ea,0) != 7:
                                     nr_calls = nr_calls + 2
-                                
+
                                 nr_calls += 1
                                 if nr_calls > 1:
                                     break

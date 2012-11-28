@@ -192,7 +192,6 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
             "Fix unknown code to functions", self)
         self.fixUnknownCodeAction.triggered.connect(self._onFixUnknownCodeButtonClicked)
 
-
     def _createRenameWrappersAction(self):
         """
         Create the action which fixes unknown code to functions via I{DocumentationHelper}.
