@@ -25,13 +25,16 @@
 ########################################################################
 
 import os
+import sys
 import time
 
+import idc
 import idaapi
 from idaapi import PluginForm, plugin_t
 from PySide import QtGui
 from PySide.QtGui import QIcon
 
+import idascope.config as config
 from idascope.core.structures.IDAscopeConfiguration import IDAscopeConfiguration
 from idascope.core.SemanticIdentifier import SemanticIdentifier
 from idascope.core.DocumentationHelper import DocumentationHelper
@@ -59,25 +62,30 @@ class IDAscopeForm(PluginForm):
 
     def __init__(self):
         super(IDAscopeForm, self).__init__()
-        banner = "#############################################\n" \
-               + "  ___ ____    _                             \n" \
-               + " |_ _|  _ \  / \   ___  ___ ___  _ __   ___ \n" \
-               + "  | || | | |/ _ \ / __|/ __/ _ \\| '_ \\ / _ \\\n" \
-               + "  | || |_| / ___ \\\\__ \\ (_| (_) | |_) |  __/\n" \
-               + " |___|____/_/   \\_\\___/\\___\\___/| .__/ \\___|\n" \
-               + "                                |_|         \n" \
-               + "#############################################\n" \
-               + " by Daniel Plohmann and Alexander Hanel      \n" \
-               + "#############################################\n"
-        print banner
-        print ("[+] Loading simpliFiRE.IDAscope")
         global HOTKEYS
         HOTKEYS = []
         self.idascope_widgets = []
-        self.root_file_path = \
-                os.path.realpath(__file__)[:os.path.realpath(__file__).rfind(os.sep) + 1]
-        self.config = IDAscopeConfiguration(self.root_file_path + os.sep + "config.json")
+        self.ensureRootPathSanity(config.configuration)
+        self.config = IDAscopeConfiguration(config.configuration)
         self.icon = QIcon(self.config.icon_file_path + "idascope.png")
+
+    def ensureRootPathSanity(self, configuration):
+        try:
+            root_dir = configuration["paths"]["idascope_root_dir"]
+            if not os.path.exists(root_dir) or not "IDAscope.py" in os.listdir(root_dir):
+                print "[!] IDAscope.py is not present in root directory specified in \"config.py\", " \
+                     + "trying to resolve path..."
+                resolved_pathname = os.path.dirname(sys.argv[0])
+                if "IDAscope.py" in os.listdir(resolved_pathname):
+                    print "[+] IDAscope root directory successfully resolved."
+                    configuration["paths"]["idascope_root_dir"] = resolved_pathname
+                else:
+                    print "[-] IDAscope.py is not resolvable!"
+                    raise Exception()
+        except:
+            print "[!] IDAscope config is broken. Could not locate root directory. " \
+                 + "Try setting the field \"idascope_root_dir\" to the path where \"IDAscope.py\" is located."
+            sys.exit(-1)
 
     def setup_shared_modules(self):
         """
@@ -121,10 +129,25 @@ class IDAscopeForm(PluginForm):
         """
         When creating the form, setup the shared modules and widgets
         """
+        self.print_banner()
         self.parent = self.FormToPySideWidget(form)
         self.parent.setWindowIcon(self.icon)
         self.setup_shared_modules()
         self.setup_widgets()
+
+    def print_banner(self):
+        banner = "#############################################\n" \
+               + "  ___ ____    _                             \n" \
+               + " |_ _|  _ \  / \   ___  ___ ___  _ __   ___ \n" \
+               + "  | || | | |/ _ \ / __|/ __/ _ \\| '_ \\ / _ \\\n" \
+               + "  | || |_| / ___ \\\\__ \\ (_| (_) | |_) |  __/\n" \
+               + " |___|____/_/   \\_\\___/\\___\\___/| .__/ \\___|\n" \
+               + "                                |_|         \n" \
+               + "#############################################\n" \
+               + " by Daniel Plohmann and Alexander Hanel      \n" \
+               + "#############################################\n"
+        print banner
+        print ("[+] Loading simpliFiRE.IDAscope")
 
     def OnClose(self, form):
         """
@@ -134,9 +157,12 @@ class IDAscopeForm(PluginForm):
         del IDASCOPE
 
     def Show(self):
-        return PluginForm.Show(self,
-            NAME,
-            options=(PluginForm.FORM_CLOSE_LATER | PluginForm.FORM_RESTORE | PluginForm.FORM_SAVE))
+        if idc.GetInputMD5() == None:
+            return
+        else:
+            return PluginForm.Show(self,
+                NAME,
+                options=(PluginForm.FORM_CLOSE_LATER | PluginForm.FORM_RESTORE | PluginForm.FORM_SAVE))
 
 ################################################################################
 # functionality offered to IDAscope's widgets
@@ -176,13 +202,17 @@ class IDAscopeForm(PluginForm):
 ################################################################################
 
 
+def PLUGIN_ENTRY():
+    return IDAscopePlugin()
+
+
 class IDAscopePlugin(plugin_t):
     """
     Plugin version of IDAscope. Use this to deploy IDAscope via IDA plugins folder.
     """
     flags = idaapi.PLUGIN_UNL
     comment = NAME
-    help = "A plugin to help to identify the relevant parts"
+    help = "IDAscope - Different tools to ease reverse engineering."
     wanted_name = "IDAscope"
     wanted_hotkey = "Ctrl-F4"
 
@@ -194,22 +224,12 @@ class IDAscopePlugin(plugin_t):
     def run(self, arg=0):
         # Create form
         f = IDAscopeForm()
-
         # Show the form
-        exit_code = f.Show()
-        if exit_code == 0:
-            f.Free()
-            return
-
-        f.Free()
+        f.Show()
         return
 
     def term(self):
         pass
-
-
-def PLUGIN_ENTRY():
-    return IDAscopePlugin()
 
 ################################################################################
 # Usage as script
@@ -218,7 +238,6 @@ def PLUGIN_ENTRY():
 
 def main():
     global IDASCOPE
-
     try:
         IDASCOPE
         IDASCOPE.OnClose(IDASCOPE)
@@ -228,7 +247,11 @@ def main():
     except Exception:
         IDASCOPE = IDAscopeForm()
 
-    IDASCOPE.Show()
+    if IDASCOPE.config.idascope_plugin_only:
+        print "IDAscope: configured as plugin-only mode, ignoring main function of script. " \
+             + "This can be changed in \"idascope/config.py\"."
+    else:
+        IDASCOPE.Show()
 
 
 if __name__ == "__main__":

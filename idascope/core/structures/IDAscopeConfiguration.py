@@ -25,9 +25,6 @@
 ########################################################################
 
 import os
-import json
-
-from idascope.core.helpers import JsonHelper
 
 
 class IDAscopeConfiguration():
@@ -35,19 +32,18 @@ class IDAscopeConfiguration():
     This class is an information container for a segment.
     """
 
-    def __init__(self, config_filename, os_ref=None):
-        self.json = json
+    def __init__(self, configuration, os_ref=None):
         if os_ref is not None:
             self.os = os_ref
         else:
             self.os = os
         # FIXME: second level path problem of referencing modules when accessing os.path.*
         try:
-            self.os_path_split = self.os.path.split
             self.os_path_normpath = self.os.path.normpath
         except:
-            self.os_path_split = None
             self.os_path_normpath = None
+        # default configuration
+        self.idascope_plugin_only = False
         self.root_file_path = ""
         self.icon_file_path = ""
         self.semantics_file = ""
@@ -56,28 +52,26 @@ class IDAscopeConfiguration():
         self.winapi_shortcut = "ctrl+y"
         self.winapi_load_keyword_database = False
         self.winapi_online_enabled = False
-        self._loadConfig(config_filename)
+        self._loadConfig(configuration)
 
-    def _loadConfig(self, config_filename):
-        # extract the root file dir from the path to the config file
-        if self.os_path_split is not None:
-            self.root_file_path = self.os_path_split(config_filename)[0] + self.os.sep
-        else:
-            # print "This path has", self.root_file_path
-            self.root_file_path = config_filename.split(self.os.sep)[0] + self.os.sep
-        # load config
-        config = self.json.loads(open(config_filename, "r").read(), object_hook=JsonHelper.decode_dict)
+    def _loadConfig(self, configuration):
+        self.root_file_path = configuration["paths"]["idascope_root_dir"]
+        # options directly affecting IDAscope
+        self.idascope_plugin_only = configuration["plugin_only"]
         # file path to the directory containing icons used by IDAscope
-        self.icon_file_path = self.root_file_path + "idascope" + self.os.sep + "icons" + self.os.sep
+        self.icon_file_path = self.root_file_path + self.os.sep \
+            + "idascope" + self.os.sep + "icons" + self.os.sep
         # parse other paths
-        self.config_path_sep = config["config_path_sep"]
-        self.semantics_file = self.root_file_path + self._normalizePath(config["paths"]["semantics_file"])
-        self.winapi_keywords_file = self.root_file_path + self._normalizePath(config["paths"]["winapi_keywords_file"])
-        self.winapi_rootdir = self._normalizePath(config["paths"]["winapi_rootdir"]) + self.os.sep
+        self.config_path_sep = configuration["config_path_sep"]
+        self.semantics_file = self.root_file_path + self.os.sep \
+            + self._normalizePath(configuration["paths"]["semantics_file"])
+        self.winapi_keywords_file = self.root_file_path + self.os.sep + \
+            self._normalizePath(configuration["paths"]["winapi_keywords_file"])
+        self.winapi_rootdir = self._normalizePath(configuration["paths"]["winapi_rootdir"]) + self.os.sep
         # widget related configurations
-        self.winapi_shortcut = config["winapi"]["search_hotkey"]
-        self.winapi_load_keyword_database = config["winapi"]["load_keyword_database"]
-        self.winapi_online_enabled = config["winapi"]["online_enabled"]
+        self.winapi_shortcut = configuration["winapi"]["search_hotkey"]
+        self.winapi_load_keyword_database = configuration["winapi"]["load_keyword_database"]
+        self.winapi_online_enabled = configuration["winapi"]["online_enabled"]
 
     def _normalizePath(self, path):
         if self.os_path_normpath is None:
