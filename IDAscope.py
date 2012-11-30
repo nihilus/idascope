@@ -87,7 +87,7 @@ class IDAscopeForm(PluginForm):
                  + "Try setting the field \"idascope_root_dir\" to the path where \"IDAscope.py\" is located."
             sys.exit(-1)
 
-    def setup_shared_modules(self):
+    def setupSharedModules(self):
         """
         Setup shared IDAscope modules.
         """
@@ -101,7 +101,7 @@ class IDAscopeForm(PluginForm):
         self.ida_proxy = IdaProxy()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
 
-    def setup_widgets(self):
+    def setupWidgets(self):
         """
         Setup IDAscope widgets.
         """
@@ -110,10 +110,10 @@ class IDAscopeForm(PluginForm):
         self.idascope_widgets.append(FunctionInspectionWidget(self))
         self.idascope_widgets.append(WinApiWidget(self))
         self.idascope_widgets.append(CryptoIdentificationWidget(self))
-        self.setup_IDAscope_form()
+        self.setupIDAscopeForm()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
 
-    def setup_IDAscope_form(self):
+    def setupIDAscopeForm(self):
         """
         Orchestrate the already initialized widgets in tabs on the main window.
         """
@@ -129,13 +129,13 @@ class IDAscopeForm(PluginForm):
         """
         When creating the form, setup the shared modules and widgets
         """
-        self.print_banner()
+        self.printBanner()
         self.parent = self.FormToPySideWidget(form)
         self.parent.setWindowIcon(self.icon)
-        self.setup_shared_modules()
-        self.setup_widgets()
+        self.setupSharedModules()
+        self.setupWidgets()
 
-    def print_banner(self):
+    def printBanner(self):
         banner = "#############################################\n" \
                + "  ___ ____    _                             \n" \
                + " |_ _|  _ \  / \   ___  ___ ___  _ __   ___ \n" \
@@ -180,7 +180,7 @@ class IDAscopeForm(PluginForm):
                 self.tabs.setCurrentIndex(tab_index)
         return
 
-    def register_hotkey(self, shortcut, py_function_pointer):
+    def registerHotkey(self, shortcut, py_function_pointer):
         """
         Can be used by IDAscope widgets to register hotkeys.
         Uses a global list HOTKEYS of function pointers that link to the desired functionality.

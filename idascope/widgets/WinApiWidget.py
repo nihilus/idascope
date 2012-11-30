@@ -74,7 +74,7 @@ class WinApiWidget(QtGui.QWidget):
         """
         Register hotkeys with IDAscope in order to ease the use of this widget.
         """
-        self.parent.register_hotkey(self.parent.config.winapi_shortcut, self._navigateToHighlightedIdentifier)
+        self.parent.registerHotkey(self.parent.config.winapi_shortcut, self._navigateToHighlightedIdentifier)
 
     def _createGui(self):
         """
