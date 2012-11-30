@@ -230,7 +230,7 @@ class SemanticIdentifier():
                 number_of_functions += 1
         return number_of_functions
 
-    def getFunctionAddresses(self, dummy=False, tag=False):
+    def getFunctionAddresses(self, context_filter):
         """
         Get all function address that have been covered by the last scanning.
         @param dummy_only: only return functions with dummy names
@@ -239,12 +239,12 @@ class SemanticIdentifier():
         @type tag_only: bool
         @return: (list of int) The addresses of covered functions.
         """
-        if tag and dummy:
+        if context_filter.display_tag_only and context_filter.display_dummy_only:
             return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name and \
                 self.last_scan_result[addr].has_tags]
-        elif tag:
+        elif context_filter.display_tag_only:
             return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_tags]
-        elif dummy:
+        elif context_filter.display_dummy_only:
             return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name]
         else:
             return self.last_scan_result.keys()

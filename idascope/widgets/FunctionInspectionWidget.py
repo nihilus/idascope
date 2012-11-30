@@ -28,6 +28,7 @@ from PySide import QtGui, QtCore
 from PySide.QtGui import QIcon
 
 from NumberQTableWidgetItem import NumberQTableWidgetItem
+from idascope.core.structures.FunctionContextFilter import FunctionContextFilter
 
 
 class FunctionInspectionWidget(QtGui.QMainWindow):
@@ -224,6 +225,10 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.parameter_table = QtGui.QTableWidget()
         self.parameter_table.doubleClicked.connect(self._onParameterDoubleClicked)
 
+################################################################################
+# Rendering and state keeping
+################################################################################
+
     def populateFunctionTable(self):
         """
         Populate the function table with information from the last scan of I{SemanticIdentifier}.
@@ -236,8 +241,8 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.funcs_table.setColumnCount(len(self.funcs_header_labels))
         self.funcs_table.setHorizontalHeaderLabels(self.funcs_header_labels)
         # Identify number of table entries and prepare addresses to display
-        function_addresses = self.si.getFunctionAddresses(self.function_dummy_only_cb.isChecked(), \
-            self.function_tag_only_cb.isChecked())
+        context_filter = self._getContextFilter()
+        function_addresses = self.si.getFunctionAddresses(context_filter)
         if self.ida_proxy.BAD_ADDR in function_addresses:
             self.funcs_table.setRowCount(len(function_addresses) - 1)
         else:
@@ -339,10 +344,20 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.parameter_table.setHorizontalHeaderLabels(self.parameter_header_labels)
 
     def updateFunctionsLabel(self):
-        num_displayed_functions = len(self.si.getFunctionAddresses(self.function_dummy_only_cb.isChecked(), \
-            self.function_tag_only_cb.isChecked()))
+        context_filter = self._getContextFilter()
+        num_displayed_functions = len(self.si.getFunctionAddresses(context_filter))
         self.funcs_label.setText("Functions of Interest (%d/%d)" %
             (num_displayed_functions, self.si.calculateNumberOfFunctions()))
+
+    def _getContextFilter(self):
+        context_filter = FunctionContextFilter()
+        context_filter.display_tag_only = self.function_dummy_only_cb.isChecked()
+        context_filter.display_tag_only = self.function_tag_only_cb.isChecked()
+        return context_filter
+
+################################################################################
+# Button actions
+################################################################################
 
     def _onRenameButtonClicked(self):
         """
