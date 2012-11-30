@@ -74,10 +74,10 @@ class DocumentationHelper():
         self.default_neutral_color = int(parsed_config["default_neutral_color"], 16)
         self.default_base_color = int(parsed_config["default_base_color"], 16)
         self.default_highlight_color = int(parsed_config["default_highlight_color"], 16)
-        self.color_map = self._generateColorMapFromDefinitions(parsed_config["semantic_definitions"])
+        self.color_map = self._generateColorMapFromDefinitions(parsed_config)
         return
 
-    def _generateColorMapFromDefinitions(self, definitions):
+    def _generateColorMapFromDefinitions(self, config):
         """
         Internal function to generate a color map from a semantic definitions config file.
         @param definitions: the defintions part of a semantic definitions config file.
@@ -85,11 +85,19 @@ class DocumentationHelper():
         @return: a dictionary of a color map, see I{layout_color_map} for a reference
         """
         color_map = {}
-        for definition in definitions:
+        for definition in config["semantic_definitions"]:
             # convert text representation of color codes to numbers
-            color_map[definition["tag"]] = {"base_color": int(definition["base_color"], 16), \
-                "highlight_color": int(definition["highlight_color"], 16)}
+            group_colors = self._getColorsForGroup(definition["group"], config)
+            color_map[definition["tag"]] = {"base_color": int(group_colors[0], 16), \
+                "highlight_color": int(group_colors[1], 16)}
         return color_map
+
+    def _getColorsForGroup(self, target_group, config):
+        for group in config["semantic_groups"]:
+            if group["name"] == target_group:
+                return (group["base_color"], group["highlight_color"])
+        print "[-] Failed to get colors for group \"%s\" - you might want to check your semantics file." % target_group
+        return (self.default_base_color, self.default_highlight_color)
 
     def uncolorAll(self):
         """

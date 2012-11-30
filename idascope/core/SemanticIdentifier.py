@@ -55,6 +55,7 @@ class SemanticIdentifier():
         self.CallContext = CallContext
         self.ParameterContext = ParameterContext
         self.renaming_seperator = "_"
+        self.semantic_groups = []
         self.semantic_definitions = []
         self.last_scan_result = {}
         self.idascope_config = idascope_config
@@ -71,6 +72,7 @@ class SemanticIdentifier():
         config = config_file.read()
         parsed_config = json.loads(config, object_hook=JsonHelper.decode_dict)
         self.renaming_seperator = parsed_config["renaming_seperator"]
+        self.semantic_groups = parsed_config["semantic_groups"]
         self.semantic_definitions = parsed_config["semantic_definitions"]
         return
 
@@ -121,9 +123,9 @@ class SemanticIdentifier():
         print ("  [/] SemanticIdentifier: Starting (fast) scan by references of function semantics.")
         time_before = self.time.time()
         self.last_scan_result = {}
-        for semantic_group in self.semantic_definitions:
-            semantic_group_tag = semantic_group["tag"]
-            for api_name in semantic_group["api_names"]:
+        for semantic_tag in self.semantic_definitions:
+            semantic_group_tag = semantic_tag["tag"]
+            for api_name in semantic_tag["api_names"]:
                 api_address = self.ida_proxy.LocByName(api_name)
                 for ref in self._getAllRefsTo(api_address):
                     function_ctx = self._getFunctionContext(ref)
