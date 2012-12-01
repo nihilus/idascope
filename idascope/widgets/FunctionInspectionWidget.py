@@ -28,7 +28,7 @@ from PySide import QtGui, QtCore
 from PySide.QtGui import QIcon
 
 from NumberQTableWidgetItem import NumberQTableWidgetItem
-from idascope.core.structures.FunctionContextFilter import FunctionContextFilter
+from FunctionFilterDialog import FunctionFilterDialog
 
 
 class FunctionInspectionWidget(QtGui.QMainWindow):
@@ -45,12 +45,14 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.icon = QIcon(self.parent.config.icon_file_path + "semantics.png")
         # This widget relies on the semantic identifier and uses some functions via IDA proxy
         self.si = self.parent.semantic_identifier
+        self.context_filter = self.si.createFunctionContextFilter()
         self.dh = self.parent.documentation_helper
         self.ida_proxy = self.parent.ida_proxy
         # references to Qt-specific modules
         self.QtGui = QtGui
         self.QtCore = QtCore
         self.NumberQTableWidgetItem = NumberQTableWidgetItem
+        self. FunctionFilterDialog = FunctionFilterDialog
         self.central_widget = self.QtGui.QWidget()
         self.setCentralWidget(self.central_widget)
         self._createGui()
@@ -73,14 +75,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
 
         function_info_widget = QtGui.QWidget()
         function_info_layout = QtGui.QHBoxLayout()
-        self.function_dummy_only_cb = QtGui.QCheckBox("Only dummy names")
-        self.function_dummy_only_cb.stateChanged.connect(self.populateFunctionTable)
-        self.function_tag_only_cb = QtGui.QCheckBox("Only tag function")
-        self.function_tag_only_cb.setCheckState(self.QtCore.Qt.Checked)
-        self.function_tag_only_cb.stateChanged.connect(self.populateFunctionTable)
         function_info_layout.addWidget(self.funcs_label)
-        function_info_layout.addWidget(self.function_dummy_only_cb)
-        function_info_layout.addWidget(self.function_tag_only_cb)
         function_info_widget.setLayout(function_info_layout)
 
         upper_table_widget = QtGui.QWidget()
@@ -124,6 +119,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self._createFixUnknownCodeWithProloguesAction()
         self._createFixAllUnknownCodeAction()
         self._createRenameWrappersAction()
+        self._createFilterAction()
 
         self.toolbar = self.addToolBar('Function Inspection Toobar')
         self.toolbar.addAction(self.refreshAction)
@@ -133,6 +129,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.toolbar.addAction(self.fixUnknownCodeWithProloguesAction)
         self.toolbar.addAction(self.fixAllUnknownCodeAction)
         self.toolbar.addAction(self.renameWrappersAction)
+        self.toolbar.addAction(self.filterAction)
 
     def _createRefreshAction(self):
         """
@@ -201,6 +198,14 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
             "Rename potential wrapper functions", self)
         self.renameWrappersAction.triggered.connect(self._onRenameWrappersButtonClicked)
 
+    def _createFilterAction(self):
+        """
+        Create the action which fixes unknown code to functions via I{DocumentationHelper}.
+        """
+        self.filterAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "filter.png"), \
+            "Adjust filter settings", self)
+        self.filterAction.triggered.connect(self._onFilterButtonClicked)
+
     def _createFunctionsTable(self):
         """
         Create the top table used for showing all functions covered by scanning for semantic information.
@@ -234,15 +239,14 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         Populate the function table with information from the last scan of I{SemanticIdentifier}.
         """
         self.funcs_table.setSortingEnabled(False)
-        self.funcs_header_labels = ["Address", "Name", "Blocks"]
-        for tag in sorted(self.si.getTags()):
-            self.funcs_header_labels.append(tag)
+        self.funcs_header_labels = ["Address", "Name"]
+        for heading in self.context_filter.generateColumnHeadings():
+            self.funcs_header_labels.append(heading)
         self.funcs_table.clear()
         self.funcs_table.setColumnCount(len(self.funcs_header_labels))
         self.funcs_table.setHorizontalHeaderLabels(self.funcs_header_labels)
         # Identify number of table entries and prepare addresses to display
-        context_filter = self._getContextFilter()
-        function_addresses = self.si.getFunctionAddresses(context_filter)
+        function_addresses = self.si.getFunctionAddresses(self.context_filter)
         if self.ida_proxy.BAD_ADDR in function_addresses:
             self.funcs_table.setRowCount(len(function_addresses) - 1)
         else:
@@ -259,12 +263,10 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
                     tmp_item = self.QtGui.QTableWidgetItem("0x%x" % function_address)
                 elif column == 1:
                     tmp_item = self.QtGui.QTableWidgetItem(self.ida_proxy.GetFunctionName(function_address))
-                elif column == 2:
-                    tmp_item = self.NumberQTableWidgetItem("%d" % \
-                        self.si.getNumberOfBasicBlocksForFunctionAddress(function_address))
                 else:
-                    tmp_item = self.NumberQTableWidgetItem("%d" % \
-                        self.si.getTagCountForFunctionAddress(column_name, function_address))
+                    query = self.context_filter.getQueryForHeading(column_name)
+                    field_count = self.si.getFieldCountForFunctionAddress(query, function_address)
+                    tmp_item = self.NumberQTableWidgetItem("%d" % field_count)
                 tmp_item.setFlags(tmp_item.flags() & ~self.QtCore.Qt.ItemIsEditable)
                 self.funcs_table.setItem(row, column, tmp_item)
             self.funcs_table.resizeRowToContents(row)
@@ -344,16 +346,12 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.parameter_table.setHorizontalHeaderLabels(self.parameter_header_labels)
 
     def updateFunctionsLabel(self):
-        context_filter = self._getContextFilter()
-        num_displayed_functions = len(self.si.getFunctionAddresses(context_filter))
-        self.funcs_label.setText("Functions of Interest (%d/%d)" %
-            (num_displayed_functions, self.si.calculateNumberOfFunctions()))
-
-    def _getContextFilter(self):
-        context_filter = FunctionContextFilter()
-        context_filter.display_tag_only = self.function_dummy_only_cb.isChecked()
-        context_filter.display_tag_only = self.function_tag_only_cb.isChecked()
-        return context_filter
+        displayed_function_addresses = self.si.getFunctionAddresses(self.context_filter)
+        num_displayed_functions = len(displayed_function_addresses)
+        if self.ida_proxy.BAD_ADDR in displayed_function_addresses:
+            num_displayed_functions -= 1
+        self.funcs_label.setText("Functions: %d - Tagged: %d - Displayed: %d" %
+            (self.si.calculateNumberOfFunctions(), self.si.calculateNumberOfTaggedFunctions(), num_displayed_functions))
 
 ################################################################################
 # Button actions
@@ -371,6 +369,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         Action for refreshing the window data by performing another scan of I{SemanticIdentifier}.
         """
         self.si.scanByReferences()
+        self.context_filter = self.si.createFunctionContextFilter()
         self.populateFunctionTable()
         self._resetLowerTables()
 
@@ -379,6 +378,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         Action for refreshing the window data by performing a deep scan of I{SemanticIdentifier}.
         """
         self.si.scan()
+        self.context_filter = self.si.createFunctionContextFilter()
         self.populateFunctionTable()
         self._resetLowerTables()
 
@@ -405,6 +405,15 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         Action for renaming potential wrapper functions to the wrapped API if they have a dummy name.
         """
         self.si.renamePotentialWrapperFunctions()
+
+    def _onFilterButtonClicked(self):
+        """
+        Action for renaming potential wrapper functions to the wrapped API if they have a dummy name.
+        """
+        dialog = self.FunctionFilterDialog(self.context_filter)
+        dialog.exec_()
+        self.context_filter = dialog.getAdjustedFunctionFilter()
+        self.populateFunctionTable()
 
     def _onFunctionClicked(self, mi):
         """

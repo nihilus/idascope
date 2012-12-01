@@ -94,7 +94,7 @@ class DocumentationHelper():
 
     def _getColorsForGroup(self, target_group, config):
         for group in config["semantic_groups"]:
-            if group["name"] == target_group:
+            if group["tag"] == target_group:
                 return (group["base_color"], group["highlight_color"])
         print "[-] Failed to get colors for group \"%s\" - you might want to check your semantics file." % target_group
         return (self.default_base_color, self.default_highlight_color)

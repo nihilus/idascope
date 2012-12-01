@@ -36,6 +36,7 @@ from helpers import JsonHelper
 
 from IdaProxy import IdaProxy
 from idascope.core.structures.FunctionContext import FunctionContext
+from idascope.core.structures.FunctionContextFilter import FunctionContextFilter
 from idascope.core.structures.CallContext import CallContext
 from idascope.core.structures.ParameterContext import ParameterContext
 
@@ -52,6 +53,7 @@ class SemanticIdentifier():
         self.time = time
         self.ida_proxy = IdaProxy()
         self.FunctionContext = FunctionContext
+        self.FunctionContextFilter = FunctionContextFilter
         self.CallContext = CallContext
         self.ParameterContext = ParameterContext
         self.renaming_seperator = "_"
@@ -124,7 +126,6 @@ class SemanticIdentifier():
         time_before = self.time.time()
         self.last_scan_result = {}
         for semantic_tag in self.semantic_definitions:
-            semantic_group_tag = semantic_tag["tag"]
             for api_name in semantic_tag["api_names"]:
                 api_address = self.ida_proxy.LocByName(api_name)
                 for ref in self._getAllRefsTo(api_address):
@@ -134,7 +135,8 @@ class SemanticIdentifier():
                     call_ctx.called_function_name = api_name
                     call_ctx.address_of_call = ref
                     call_ctx.called_address = api_address
-                    call_ctx.tag = semantic_group_tag
+                    call_ctx.tag = semantic_tag["tag"]
+                    call_ctx.group = semantic_tag["group"]
                     call_ctx.parameter_contexts = self._resolveApiCall(call_ctx)
                     function_ctx.call_contexts.append(call_ctx)
         print ("  [\\] Analysis took %3.2f seconds." % (self.time.time() - time_before))
@@ -230,6 +232,13 @@ class SemanticIdentifier():
                 number_of_functions += 1
         return number_of_functions
 
+    def calculateNumberOfTaggedFunctions(self):
+        """
+        Calculate the number of functions in all segments that have been tagged.
+        @return: (int) the number of functions found.
+        """
+        return len(self.getFunctionAddresses(self.createFunctionContextFilter()))
+
     def getFunctionAddresses(self, context_filter):
         """
         Get all function address that have been covered by the last scanning.
@@ -239,16 +248,26 @@ class SemanticIdentifier():
         @type tag_only: bool
         @return: (list of int) The addresses of covered functions.
         """
-        if context_filter.display_tag_only and context_filter.display_dummy_only:
-            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name and \
-                self.last_scan_result[addr].has_tags]
-        elif context_filter.display_tag_only:
-            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_tags]
-        elif context_filter.display_dummy_only:
-            return [addr for addr in self.last_scan_result.keys() if self.last_scan_result[addr].has_dummy_name]
-        else:
-            return self.last_scan_result.keys()
-        return []
+        all_addresses = self.last_scan_result.keys()
+        filtered_addresses = []
+        if context_filter.display_all:
+            filtered_addresses = all_addresses
+        elif context_filter.display_tags:
+            for address in all_addresses:
+                enabled_tags = [tag[0] for tag in context_filter.enabled_tags]
+                if len(set(self.last_scan_result[address].getTags()) & set(enabled_tags)) > 0:
+                    filtered_addresses.append(address)
+        elif context_filter.display_groups:
+            for address in all_addresses:
+                enabled_groups = [group[0] for group in context_filter.enabled_groups]
+                if len(set(self.last_scan_result[address].getGroups()) & set(enabled_groups)) > 0:
+                    filtered_addresses.append(address)
+        # filter additionals
+        if context_filter.isDisplayTagOnly():
+            filtered_addresses = [addr for addr in filtered_addresses if self.last_scan_result[addr].has_tags]
+        if context_filter.isDisplayDummyOnly():
+            filtered_addresses = [addr for addr in filtered_addresses if self.last_scan_result[addr].has_dummy_name]
+        return filtered_addresses
 
     def getTags(self):
         """
@@ -261,6 +280,25 @@ class SemanticIdentifier():
                 if call_ctx.tag not in tags:
                     tags.append(call_ctx.tag)
         return tags
+
+    def getGroups(self):
+        """
+        Get all the groups that have been covered by tags in the last scanning.
+        @return (list of str) The groups found.
+        """
+        tag_to_group_mapping = self._createTagToGroupMapping()
+        groups = []
+        for function_address in self.last_scan_result.keys():
+            for call_ctx in self.last_scan_result[function_address].call_contexts:
+                if tag_to_group_mapping[call_ctx.tag] not in groups:
+                    groups.append(tag_to_group_mapping[call_ctx.tag])
+        return groups
+
+    def _createTagToGroupMapping(self):
+        mapping = {}
+        for definition in self.semantic_definitions:
+            mapping[definition["tag"]] = definition["group"]
+        return mapping
 
     def getTagsForFunctionAddress(self, address):
         """
@@ -277,22 +315,17 @@ class SemanticIdentifier():
                     tags.append(call_ctx.tag)
         return tags
 
-    def getTagCountForFunctionAddress(self, tag, address):
+    def getFieldCountForFunctionAddress(self, query, address):
         """
-        Get the number of occurrences for a certain tag for the function containing the queried address.
-        @param tag: a tag as included in semantic definitions
-        @type tag: str
+        Get the number of occurrences for a certain field for the function containing the queried address.
+        @param query: a tuple (type, name), where type is additional, tag, or group and name the field being queried.
+        @type query: tuple
         @param address: address in the target function
         @type address: int
         @return: (int) The number of occurrences for this tag in the function
         """
         function_address = self.getFunctionAddressForAddress(address)
-        tag_count = 0
-        if tag in self.getTagsForFunctionAddress(function_address):
-            for call_ctx in self.last_scan_result[function_address].call_contexts:
-                if call_ctx.tag == tag:
-                    tag_count += 1
-        return tag_count
+        return self.last_scan_result[function_address].getCountForField(query)
 
     def getTaggedApisForFunctionAddress(self, address):
         """
@@ -536,6 +569,17 @@ class SemanticIdentifier():
                         set(self.last_scan_result[current_function].calls_from).difference(set(graph["nodes"].keys()))
                     unexplored.update(new_functions)
         return graph
+
+    def createFunctionContextFilter(self):
+        """
+        Create a function filter, containing only those tags/groups that have been identified within the last scan.
+        """
+        context_filter = self.FunctionContextFilter()
+        context_filter.tags = sorted([(tag, tag, tag) for tag in self.getTags()])
+        context_filter.enabled_tags = context_filter.tags
+        context_filter.groups = sorted([(group, group, group) for group in self.getGroups()])
+        context_filter.enabled_groups = context_filter.groups
+        return context_filter
 
     def getLastScanResult(self):
         """

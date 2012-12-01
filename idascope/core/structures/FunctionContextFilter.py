@@ -34,16 +34,55 @@ class FunctionContextFilter():
     def __init__(self):
         self.display_tags = True
         self.display_groups = False
-        self.display_tag_only = True
-        self.display_dummy_only = False
+        self.display_all = False
+        # tags, groups, additionals are 3-tuples of the form: (id, heading, description)
+        # tuples having an id starting with an underscore are not displayed in result tables.
+        self.tags = []
+        self.groups = []
         self.enabled_tags = []
         self.enabled_groups = []
-        self.enabled_additions = []
+        self.additionals = [("_dummy_only", "Dummy Names", "Dummy names only"), \
+            ("_tagged_only", "Tagged only", "Tagged functions only"), \
+            ("num_blocks", "Blocks", "Number of Basic Blocks"), \
+            ("num_ins", "Ins", "Number of Instructions"), \
+            ("xrefs_in", "Xrefs IN", "Incoming cross-references"), \
+            ("xrefs_out", "Xrefs OUT", "Outgoing cross-references")]
+        self.enabled_additionals = []
 
-    def setGroupDisplay(self):
-        self.display_tags = False
-        self.display_groups = True
+    def generateColumnHeadings(self):
+        headings = []
+        for additional in self.enabled_additionals:
+            if not additional[0].startswith("_"):
+                headings.append(additional[1])
+        if self.display_tags:
+            for tag in self.enabled_tags:
+                headings.append(tag[1])
+        if self.display_groups:
+            for group in self.enabled_groups:
+                headings.append(group[1])
+        return headings
 
-    def setTagDisplay(self):
-        self.display_tags = True
-        self.display_groups = False
+    def getQueryForHeading(self, heading):
+        for tag in self.tags:
+            if tag[1] == heading:
+                return ("tag", tag[0])
+        for group in self.groups:
+            if group[1] == heading:
+                return ("group", group[0])
+        for additional in self.additionals:
+            if additional[1] == heading:
+                return ("additional", additional[0])
+
+    def isDisplayTagOnly(self):
+        return ("_tagged_only", "Tagged only", "Tagged functions only") in self.enabled_additionals
+
+    def isDisplayDummyOnly(self):
+        return ("_dummy_only", "Dummy Names", "Dummy names only") in self.enabled_additionals
+
+    def __str__(self):
+        return "Tags: %s, Groups: %s\nTags: %s\nEnabled: %s\nGroups: %s\nEnabled: %s" % \
+            (self.display_tags, self.display_groups, \
+            self.tags, \
+            self.enabled_tags, \
+            self.groups, \
+            self.enabled_groups)
