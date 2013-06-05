@@ -65,6 +65,8 @@ class IDAscopeConfiguration():
         self.config_path_sep = configuration["config_path_sep"]
         self.semantics_file = self.root_file_path + self.os.sep \
             + self._normalizePath(configuration["paths"]["semantics_file"])
+        self.semantics_folder = self.root_file_path + self.os.sep \
+            + self._normalizePath(configuration["paths"]["semantics_folder"])
         self.winapi_keywords_file = self.root_file_path + self.os.sep + \
             self._normalizePath(configuration["paths"]["winapi_keywords_file"])
         self.winapi_rootdir = self._normalizePath(configuration["paths"]["winapi_rootdir"]) + self.os.sep
@@ -72,6 +74,7 @@ class IDAscopeConfiguration():
         self.winapi_shortcut = configuration["winapi"]["search_hotkey"]
         self.winapi_load_keyword_database = configuration["winapi"]["load_keyword_database"]
         self.winapi_online_enabled = configuration["winapi"]["online_enabled"]
+        self.inspection_default_semantics = configuration["inspection"]["default_semantics"]
 
     def _normalizePath(self, path):
         if self.os_path_normpath is None:

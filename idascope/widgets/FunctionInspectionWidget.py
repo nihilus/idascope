@@ -105,8 +105,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
 
         self.central_widget.setLayout(semantics_layout)
 
-        self.populateFunctionTable()
-        self.updateFunctionsLabel()
+        self.update()
 
     def _createToolbar(self):
         """
@@ -120,6 +119,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self._createFixAllUnknownCodeAction()
         self._createRenameWrappersAction()
         self._createFilterAction()
+        self._createSemanticsChooserAction()
 
         self.toolbar = self.addToolBar('Function Inspection Toobar')
         self.toolbar.addAction(self.refreshAction)
@@ -130,6 +130,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.toolbar.addAction(self.fixAllUnknownCodeAction)
         self.toolbar.addAction(self.renameWrappersAction)
         self.toolbar.addAction(self.filterAction)
+        self.toolbar.addWidget(self.semanticsChooserAction)
 
     def _createRefreshAction(self):
         """
@@ -206,6 +207,16 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
             "Adjust filter settings", self)
         self.filterAction.triggered.connect(self._onFilterButtonClicked)
 
+    def _createSemanticsChooserAction(self):
+        """
+        Create the action which fixes unknown code to functions via I{DocumentationHelper}.
+        """
+        self.semanticsChooserAction = QtGui.QComboBox()
+        self.semanticsChooserAction.addItems(self.si.getSemanticsNames())
+        if self.si.getActiveSemanticsName() in self.si.getSemanticsNames():
+            self.semanticsChooserAction.setCurrentIndex(self.si.getSemanticsNames().index(self.si.getActiveSemanticsName()))
+        self.semanticsChooserAction.currentIndexChanged.connect(self.onSemanticsChosen)
+
     def _createFunctionsTable(self):
         """
         Create the top table used for showing all functions covered by scanning for semantic information.
@@ -233,6 +244,12 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
 ################################################################################
 # Rendering and state keeping
 ################################################################################
+
+    def update(self):
+        self.context_filter = self.si.createFunctionContextFilter()
+        self.populateFunctionTable()
+        self.updateFunctionsLabel()
+        self.semanticsChooserAction.setEditText(self.si.getActiveSemanticsName())
 
     def populateFunctionTable(self):
         """
@@ -414,6 +431,13 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         dialog.exec_()
         self.context_filter = dialog.getAdjustedFunctionFilter()
         self.populateFunctionTable()
+
+    def onSemanticsChosen(self, index):
+        """
+        Action for changing the semantics profile used for identifying API usage.
+        """
+        self.si._setSemantics(self.semanticsChooserAction.itemText(index))
+        self.update()
 
     def _onFunctionClicked(self, mi):
         """

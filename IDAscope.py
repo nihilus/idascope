@@ -94,7 +94,6 @@ class IDAscopeForm(PluginForm):
         time_before = time.time()
         print ("[/] setting up shared modules...")
         self.semantic_identifier = SemanticIdentifier(self.config)
-        self.semantic_identifier.scanByReferences()
         self.crypto_identifier = CryptoIdentifier()
         self.documentation_helper = DocumentationHelper(self.config)
         self.winapi_provider = WinApiProvider(self.config)

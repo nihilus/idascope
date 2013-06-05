@@ -29,6 +29,7 @@
 ########################################################################
 
 import json
+import os
 import re
 import time
 
@@ -49,6 +50,7 @@ class SemanticIdentifier():
 
     def __init__(self, idascope_config):
         print ("[|] loading SemanticIdentifier")
+        self.os = os
         self.re = re
         self.time = time
         self.ida_proxy = IdaProxy()
@@ -56,27 +58,64 @@ class SemanticIdentifier():
         self.FunctionContextFilter = FunctionContextFilter
         self.CallContext = CallContext
         self.ParameterContext = ParameterContext
+        # fields
+        self.semantics = {}
+        self.active_semantics = {}
         self.renaming_seperator = "_"
         self.semantic_groups = []
         self.semantic_definitions = []
         self.last_scan_result = {}
         self.idascope_config = idascope_config
-        self._loadConfig(self.idascope_config.semantics_file)
+        self._loadSemantics(self.idascope_config)
         return
 
-    def _loadConfig(self, config_filename):
+    def _loadSemantics(self, config):
         """
         Loads a semantic configuration file and collects all definitions from it.
         @param config_filename: filename of a semantic configuration file
         @type config_filename: str
         """
-        config_file = open(config_filename, "r")
-        config = config_file.read()
-        parsed_config = json.loads(config, object_hook=JsonHelper.decode_dict)
-        self.renaming_seperator = parsed_config["renaming_seperator"]
-        self.semantic_groups = parsed_config["semantic_groups"]
-        self.semantic_definitions = parsed_config["semantic_definitions"]
+        for filename in [fn for fn in self.os.listdir(config.semantics_folder) if fn.endswith(".json")]:
+            loaded_file = self._loadSemanticsFile(config.semantics_folder + self.os.sep + filename)
+            self.semantics[loaded_file["name"]] = loaded_file
+        if config.inspection_default_semantics in self.semantics:
+            self._setSemantics(config.inspection_default_semantics)
+        elif len(self.semantics) > 0:
+            self._setSemantics(sorted(self.semantics.keys())[0])
+        else:
+            self._setSemantics("")
         return
+
+    def _loadSemanticsFile(self, semantics_filename):
+        """
+        Loads a semantic configuration file and collects all definitions from it.
+        @param config_filename: filename of a semantic configuration file
+        @type config_filename: str
+        """
+        semantics_file = open(semantics_filename, "r")
+        semantics = semantics_file.read()
+        return json.loads(semantics, object_hook=JsonHelper.decode_dict)
+
+    def _setSemantics(self, semantics_entry):
+        semantics_content = {}
+        if semantics_entry in self.semantics:
+            semantics_content = self.semantics[semantics_entry]
+            self.renaming_seperator = semantics_content["renaming_seperator"]
+            self.semantic_groups = semantics_content["semantic_groups"]
+            self.semantic_definitions = semantics_content["semantic_definitions"]
+            self.active_semantics = semantics_content
+        else:
+            self.renaming_seperator = "_"
+            self.semantic_groups = []
+            self.semantic_definitions = []
+            self.active_semantics = {"name": "none"}
+        self.scanByReferences()
+
+    def getSemanticsNames(self):
+        return sorted(self.semantics.keys())
+
+    def getActiveSemanticsName(self):
+        return self.active_semantics["name"]
 
     def calculateNumberOfBasicBlocksForFunctionAddress(self, function_address):
         """
