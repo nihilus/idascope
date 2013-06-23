@@ -31,7 +31,8 @@
 
 import operator
 
-def lrange(num1, num2 = None, step = 1):
+
+def lrange(num1, num2=None, step=1):
     """
     Allows iteration over arbitrary numbers instead of dword long numbers.
     Credits go to:
@@ -52,3 +53,18 @@ def lrange(num1, num2 = None, step = 1):
     while op(num1, num2):
         yield num1
         num1 += step
+
+
+def cleanCountingSuffix(name):
+    """
+    IDA does not support multiple identical names, thus often a suffix like _0, _1 is used to signal identity.
+    This function will check a name for presence of such a suffix and remove to allow easier post-processing.
+    """
+    if "_" in name:
+        try:
+            int(name[1 + name.rindex("_"):])
+            return name[:name.rindex("_")]
+        except:
+            return name
+    else:
+        return name

@@ -27,6 +27,8 @@
 from PySide import QtGui, QtCore
 from PySide.QtGui import QCompleter, QLineEdit, QStringListModel, QTextBrowser, QIcon
 
+import idascope.core.helpers.Misc as Misc
+
 
 class WinApiWidget(QtGui.QWidget):
     """
@@ -253,7 +255,7 @@ class WinApiWidget(QtGui.QWidget):
         A function exposed to allow navigating the widget to the currently highlighted identifier from the IDA view.
         """
         if self.winapi.hasOfflineMsdnAvailable():
-            highlighted_identifier = self.ida_proxy.get_highlighted_identifier()
+            highlighted_identifier = Misc.cleanCountingSuffix(self.ida_proxy.get_highlighted_identifier())
             self.navigate(highlighted_identifier)
             self.parent.setTabFocus(self.name)
 
