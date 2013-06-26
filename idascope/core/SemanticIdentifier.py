@@ -424,6 +424,9 @@ class SemanticIdentifier():
                     self.ida_proxy.SN_NOWARN)
 
     def renamePotentialWrapperFunctions(self):
+        """
+        contributed by Branko Spasojevic.
+        """
         num_wrappers_renamed = 0
         for seg_ea in self.ida_proxy.Segments():
             for func_ea in self.ida_proxy.Functions(self.ida_proxy.SegStart(seg_ea), self.ida_proxy.SegEnd(seg_ea)):
@@ -433,6 +436,7 @@ class SemanticIdentifier():
                     # wrappers are likely short
                     if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x40:
                         nr_calls = 0
+                        w_name = ""
                         for i_ea in self.ida_proxy.FuncItems(func_ea):
                             if self.ida_proxy.GetMnem(i_ea) == 'jmp' \
                                 and (func_ea > self.ida_proxy.GetOperandValue(i_ea,0) \
