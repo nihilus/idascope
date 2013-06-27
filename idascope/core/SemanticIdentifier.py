@@ -431,58 +431,66 @@ class SemanticIdentifier():
         for seg_ea in self.ida_proxy.Segments():
             for func_ea in self.ida_proxy.Functions(self.ida_proxy.SegStart(seg_ea), self.ida_proxy.SegEnd(seg_ea)):
                 if (self.ida_proxy.GetFlags(func_ea) & 0x8000) != 0:
-                    # dummy function check if wrapper material
-                    func_end = self.ida_proxy.GetFunctionAttr(func_ea, self.ida_proxy.FUNCATTR_END)
-                    # wrappers are likely short
-                    if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x40:
-                        nr_calls = 0
-                        w_name = ""
-                        for i_ea in self.ida_proxy.FuncItems(func_ea):
-                            if self.ida_proxy.GetMnem(i_ea) == 'jmp' \
-                                and (func_ea > self.ida_proxy.GetOperandValue(i_ea,0) \
-                                    or func_end < self.ida_proxy.GetOperandValue(i_ea,0)):
-                                   nr_calls = nr_calls + 2
-                            if self.ida_proxy.GetMnem(i_ea) == 'call':
-                                # checks if call is not memory reference
-                                if self.ida_proxy.GetOpType(i_ea,0) != 2 \
-                                    and self.ida_proxy.GetOpType(i_ea,0) != 6 \
-                                        and self.ida_proxy.GetOpType(i_ea,0) != 7:
-                                    nr_calls = nr_calls + 2
-
-                                nr_calls += 1
-                                if nr_calls > 1:
-                                    break
-                                call_dst = list(self.ida_proxy.CodeRefsFrom(i_ea, 0))
-                                if len(call_dst) == 0:
-                                    continue
-                                call_dst = call_dst[0]
-                                w_name = ''
-                                if (self.ida_proxy.GetFunctionFlags(call_dst) & self.ida_proxy.FUNC_LIB) != 0 or \
-                                    (self.ida_proxy.GetFlags(func_ea) & self.ida_proxy.FF_LABL) == 0:
-                                    w_name = self.ida_proxy.Name(call_dst)
-                        if nr_calls == 1 and len(w_name) > 0:
-                            rval = False
-                            name_suffix = 0
-                            while rval == False:
-                                if name_suffix > 40:
-                                    print("[!] Potentially more than 50 wrappers for function %s, " \
-                                        "please report this IDB ;)" % w_name)
-                                    break
-                                demangled_name = self.ida_proxy.Demangle(w_name, self.ida_proxy.GetLongPrm(self.ida_proxy.INF_SHORT_DN))
-                                if demangled_name != None and demangled_name != w_name:
-                                    f_name = w_name + '_' + str(name_suffix)
-                                elif name_suffix > 0:
-                                    f_name = w_name + '_w' + str(name_suffix)
-                                else:
-                                    f_name = w_name + '_w'
-                                name_suffix += 1
-                                rval = self.ida_proxy.MakeNameEx(func_ea, f_name, \
-                                    self.ida_proxy.SN_NOCHECK | self.ida_proxy.SN_NOWARN)
-                            if rval == True:
-                                print("[+] Identified and renamed potential wrapper @ [%08x] to [%s]" % \
-                                    (func_ea, f_name))
-                                num_wrappers_renamed += 1
+                    nr_calls, w_name = self._checkWrapperHeuristics(func_ea)
+                    if nr_calls == 1 and len(w_name) > 0:
+                        rval = False
+                        name_suffix = 0
+                        while rval == False:
+                            if name_suffix > 40:
+                                print("[!] Potentially more than 50 wrappers for function %s, " \
+                                    "please report this IDB ;)" % w_name)
+                                break
+                            demangled_name = self.ida_proxy.Demangle(w_name, self.ida_proxy.GetLongPrm(self.ida_proxy.INF_SHORT_DN))
+                            if demangled_name != None and demangled_name != w_name:
+                                f_name = w_name + '_w' + str(name_suffix)
+                            elif name_suffix > 0:
+                                f_name = w_name + '_w' + str(name_suffix)
+                            else:
+                                f_name = w_name + '_w0'
+                            name_suffix += 1
+                            rval = self.ida_proxy.MakeNameEx(func_ea, f_name, \
+                                self.ida_proxy.SN_NOCHECK | self.ida_proxy.SN_NOWARN)
+                        if rval == True:
+                            print("[+] Identified and renamed potential wrapper @ [%08x] to [%s]" % \
+                                (func_ea, f_name))
+                            num_wrappers_renamed += 1
         print("[+] Renamed %d functions with their potentially wrapped name." % num_wrappers_renamed)
+
+    def _checkWrapperHeuristics(self, func_ea):
+        """
+        Helps renamePotentialWrapperFunctions() to decide whether the function analyzed is a wrapper or not.
+        """
+        nr_calls = 0
+        w_name = ""
+        # Heuristic: wrappers are likely short
+        func_end = self.ida_proxy.GetFunctionAttr(func_ea, self.ida_proxy.FUNCATTR_END)
+        if (func_end - func_ea) > 0 and (func_end - func_ea) < 0x40:
+            return (0, "")
+        # Heuristic: wrappers shall only have a single reference, ideally to a library function.
+        for i_ea in self.ida_proxy.FuncItems(func_ea):
+            # long jumps don't occur in wrappers considered by this code.
+            if self.ida_proxy.GetMnem(i_ea) == 'jmp' \
+                and (func_ea > self.ida_proxy.GetOperandValue(i_ea,0) \
+                    or func_end < self.ida_proxy.GetOperandValue(i_ea,0)):
+                   nr_calls += 2
+            # checks if call is not memory reference
+            if self.ida_proxy.GetMnem(i_ea) == 'call':
+                nr_calls += 1
+                if self.ida_proxy.GetOpType(i_ea,0) != 2 \
+                    and self.ida_proxy.GetOpType(i_ea,0) != 6 \
+                        and self.ida_proxy.GetOpType(i_ea,0) != 7:
+                    nr_calls += 2
+                if nr_calls > 1:
+                    break
+                call_dst = list(self.ida_proxy.CodeRefsFrom(i_ea, 0))
+                if len(call_dst) == 0:
+                    continue
+                call_dst = call_dst[0]
+                if (self.ida_proxy.GetFunctionFlags(call_dst) & self.ida_proxy.FUNC_LIB) != 0 or \
+                    (self.ida_proxy.GetFlags(func_ea) & self.ida_proxy.FF_LABL) == 0:
+                    w_name = self.ida_proxy.Name(call_dst)
+        return (nr_calls, w_name)
+
 
     def getParametersForCallAddress(self, call_address):
         """

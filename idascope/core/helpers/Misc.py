@@ -60,6 +60,14 @@ def cleanCountingSuffix(name):
     IDA does not support multiple identical names, thus often a suffix like _0, _1 is used to signal identity.
     This function will check a name for presence of such a suffix and remove to allow easier post-processing.
     """
+    if "_w" in name:
+        try:
+            int(name[2 + name.rindex("_w"):])
+            return name[:name.rindex("_w")]
+        except:
+            return name
+    else:
+        return name
     if "_" in name:
         try:
             int(name[1 + name.rindex("_"):])
