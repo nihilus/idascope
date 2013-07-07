@@ -66,13 +66,10 @@ def cleanCountingSuffix(name):
             return name[:name.rindex("_w")]
         except:
             return name
-    else:
-        return name
     if "_" in name:
         try:
             int(name[1 + name.rindex("_"):])
             return name[:name.rindex("_")]
         except:
             return name
-    else:
-        return name
+    return name
