@@ -273,7 +273,7 @@ class CryptoIdentifier():
                     current_seg = self.ida_proxy.NextSeg(seg_end)
                     if not current_seg == self.ida_proxy.BAD_ADDR:
                         seg_end = self.ida_proxy.SegEnd(current_seg)
-            if seg_end == temporary_segment:
+            if temporary_segment is not None and seg_end == temporary_segment:
                 current_seg = temporary_segment
                 seg_end = self.ida_proxy.SegEnd(current_seg)
                 while current_seg != self.ida_proxy.BAD_ADDR:
@@ -285,7 +285,8 @@ class CryptoIdentifier():
                         current_seg = signature_hit + variable_signatures[var_sig].count(" ") + 1
                     else:
                         break
-        self.ida_proxy.DelSeg(temporary_segment, self.ida_proxy.SEGMOD_KILL)
+        if temporary_segment is not None:
+            self.ida_proxy.DelSeg(temporary_segment, self.ida_proxy.SEGMOD_KILL)
         return crypt_results
 
     def extractAddr(self, signature_hit, decoded_base64):
@@ -314,6 +315,9 @@ class CryptoIdentifier():
         return decoded_names
 
     def mapBase64ToTemporarySegment(self, decoded_base64):
+        if len(decoded_base64) == 0:
+            print ("[!] No base64 strings found, skipping scanning of decoded strings.")
+            return None
         byte_count = decoded_base64[-1][1] + len(decoded_base64[-1][2])
         # get end of final segment to spawn a new one at that location, write decoded bytes there, search
         current_seg = self.ida_proxy.FirstSeg()
