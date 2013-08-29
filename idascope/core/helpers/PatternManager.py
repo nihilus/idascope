@@ -306,8 +306,8 @@ class PatternManager:
         MutablePattern("\x00\x00\x00\x00\x99\x79\x82\x5a\xa1\xeb\xd9\x6e\xdc\xbc\x1b\x8f\x4e\xfd\x53\xa9\xe6\x8b\xa2\x50\x24\xd1\x4d\x5c\xf3\x3e\x70\x6d\xe9\x76\x6d\x7a\x00\x00\x00\x00"): "ripe_md160",
         MutablePattern("\x04\x0a\x09\x02\x0d\x08\x00\x0e\x06\x0b\x01\x0c\x07\x0f\x05\x03\x0e\x0b\x04\x0c\x06\x0d\x0f\x0a\x02\x03\x08\x01\x00\x07\x05\x09\x05\x08\x01\x0d\x0a\x03\x04\x02\x0e\x0f\x0c\x07\x06\x00\x09\x0b\x07\x0d\x0a\x01\x00\x08\x09\x0f\x0e\x04\x06\x0c\x0b\x02\x05\x03\x06\x0c\x07\x01\x05\x0f\x0d\x08\x04\x0a\x09\x0e\x00\x03\x0b\x02\x04\x0b\x0a\x00\x07\x02\x01\x0d\x03\x06\x08\x05\x09\x0c\x0f\x0e\x0d\x0b\x04\x01\x03\x0f\x05\x09\x00\x0a\x0e\x07\x06\x08\x02\x0c\x01\x0f\x0d\x00\x05\x07\x0a\x04\x09\x02\x03\x0e\x06\x0b\x08\x0c"): "GOST Sbox",
 
-        MutablePattern("\x0D\x66\x19\x00"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
-        MutablePattern("\x5F\xF3\x6E\x3C"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
+        str("\x0D\x66\x19\x00"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
+        str("\x5F\xF3\x6E\x3C"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
 
         VariablePattern("30 82 ? ? 30 82 ? ?"): "PKCS: X.509 Certificate",
         VariablePattern("30 82 ? ? 02 01 00 02 41"): "PKCS: Private-Key (512 bit)",
@@ -324,6 +324,10 @@ class PatternManager:
 
     def __init__(self):
         print ("[|] loading PatternManager")
+
+    def padStringToDwords(self, stringToPad):
+        dwordPadder = lambda item: item + "\x00" * 3
+        return "".join(map(dwordPadder, stringToPad))
 
     def getTokenizedSignatures(self, pattern_length):
         """
@@ -365,6 +369,11 @@ class PatternManager:
         for signature in self.signatures.keys():
             if not isinstance(signature, VariablePattern):
                 static_signature_keys.append(signature)
+            # extend self.signatures by dword padded version of MutablePatterns
+            if isinstance(signature, MutablePattern):
+                padded = self.padStringToDwords(signature)
+                self.signatures[padded] = self.signatures[signature] + " (dword padded)"
+                static_signature_keys.append(padded)
         return static_signature_keys
 
     def getVariableSignatures(self):
