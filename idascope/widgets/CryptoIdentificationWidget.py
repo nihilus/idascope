@@ -80,27 +80,43 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         """
         Creates the toolbar, containing buttons to control the widget.
         """
-        self._createScanAction()
+        self._createScanArithLogAction()
+        self._createScanSignatureAction()
         self.toolbar = self.addToolBar('Crypto Identification Toobar')
-        self.toolbar.addAction(self.scanAction)
+        self.toolbar.addAction(self.scanArithLogAction)
+        self.toolbar.addAction(self.scanSignatureAction)
 
-    def _createScanAction(self):
+    def _createScanArithLogAction(self):
         """
         Create an action for the scan button of the toolbar and connect it.
         """
-        self.scanAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "scancrypto.png"), \
+        self.scanArithLogAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "scan_arithmetic.png"), \
             "Perform deep scan with crypto signatures (might take some time)", self)
-        self.scanAction.triggered.connect(self._onScanButtonClicked)
+        self.scanArithLogAction.triggered.connect(self._onScanArithLogButtonClicked)
 
-    def _onScanButtonClicked(self):
+    def _createScanSignatureAction(self):
+        """
+        Create an action for the scan button of the toolbar and connect it.
+        """
+        self.scanSignatureAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "scan_crypto.png"), \
+            "Perform deep scan with crypto signatures (might take some time)", self)
+        self.scanSignatureAction.triggered.connect(self._onScanSignatureButtonClicked)
+
+    def _onScanArithLogButtonClicked(self):
+        """
+        The logic of the scan button from the toolbar.
+        Uses the scanning functions of I{CryptoIdentifier} and updates the elements displaying the results.
+        """
+        self.ci.scanAritlog()
+        self.populateAritlogTable()
+
+    def _onScanSignatureButtonClicked(self):
         """
         The logic of the scan button from the toolbar.
         Uses the scanning functions of I{CryptoIdentifier} and updates the elements displaying the results.
         """
         self.ci.scanCryptoPatterns()
         self.populateSignatureTree()
-        self.ci.scanAritlog()
-        self.populateAritlogTable()
 
 ################################################################################
 # Aritlog GUI
