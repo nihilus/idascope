@@ -140,6 +140,9 @@ class IdaProxy():
     def MakeNameEx(self, address, name, warning_level):
         return self.idc.MakeNameEx(address, name, warning_level)
 
+    def MakeRptCmt(self, ea, comment):
+        return self.idc.MakeRptCmt(ea, comment)
+
     def Name(self, address):
         return self.idc.Name(address)
 
@@ -151,6 +154,9 @@ class IdaProxy():
 
     def PrevHead(self, ea, minea=0):
         return self.idc.PrevHead(ea, minea)
+
+    def RptCmt(self, ea):
+        return self.idc.RptCmt(ea)
 
     def SegEnd(self, address):
         return self.idc.SegEnd(address)

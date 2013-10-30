@@ -82,9 +82,11 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         """
         self._createScanArithLogAction()
         self._createScanSignatureAction()
+        self._createAnnotateAction()
         self.toolbar = self.addToolBar('Crypto Identification Toobar')
         self.toolbar.addAction(self.scanArithLogAction)
         self.toolbar.addAction(self.scanSignatureAction)
+        self.toolbar.addAction(self.annotateAction)
 
     def _createScanArithLogAction(self):
         """
@@ -102,6 +104,14 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
             "Perform deep scan with crypto signatures (might take some time)", self)
         self.scanSignatureAction.triggered.connect(self._onScanSignatureButtonClicked)
 
+    def _createAnnotateAction(self):
+        """
+        Create an action for the scan button of the toolbar and connect it.
+        """
+        self.annotateAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "tags.png"), \
+            "Annotate signature hits with repeatable comments.", self)
+        self.annotateAction.triggered.connect(self._onAnnotateButtonClicked)
+
     def _onScanArithLogButtonClicked(self):
         """
         The logic of the scan button from the toolbar.
@@ -117,6 +127,13 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         """
         self.ci.scanCryptoPatterns()
         self.populateSignatureTree()
+
+    def _onAnnotateButtonClicked(self):
+        """
+        The logic of the scan button from the toolbar.
+        Uses the scanning functions of I{CryptoIdentifier} and updates the elements displaying the results.
+        """
+        self.annotateHits()
 
 ################################################################################
 # Aritlog GUI
@@ -400,3 +417,20 @@ class CryptoIdentificationWidget(QtGui.QMainWindow):
         """
         if item in self.qtreewidgetitems_to_addresses:
             self.ip.Jump(self.qtreewidgetitems_to_addresses[item])
+
+    def annotateHits(self):
+        signature_hits = self.ci.getSignatureHits()
+        for hit in signature_hits:
+            for place in signature_hits[hit]:
+                addr = place.start_address
+                prev_head = self.ip.PrevHead(addr, addr - 14)
+                flags = self.ip.GetFlags(prev_head)
+                if not self.ip.RptCmt(addr):
+                    if self.ip.isCode(flags):
+                        # maximum instruction length on Intel is 14 bytes, so we don't need to search further back.
+                        self.ip.MakeRptCmt(prev_head, place.getSignatureNames())
+                    else:
+                        self.ip.MakeRptCmt(addr, place.getSignatureNames())
+                else:
+                    print "CryptoIdentificationWidget: Skipping 0x%x (%s), already has comment: \"%s\"" % \
+                        (addr, place.getSignatureNames(), self.ip.RptCmt(addr))

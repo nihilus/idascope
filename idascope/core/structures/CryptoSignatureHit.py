@@ -39,12 +39,15 @@ class CryptoSignatureHit():
         # boolean designates if it is an in-code reference, e.g. within a mov/push instruction or similar
         self.code_refs_to = []
 
+    def getSignatureNames(self):
+        return ", ".join(self.signature_names)
+
     def __str__(self):
         """
         Convenience function.
         @return: a nice string representation for this object
         """
-        return "0x%x (%d): %s" % (self.start_address, len(self.matched_signature), ", ".join(self.signature_names))
+        return "0x%x (%d): %s" % (self.start_address, len(self.matched_signature), self.getSignatureNames())
 
     def __lt__(self, other):
         """
