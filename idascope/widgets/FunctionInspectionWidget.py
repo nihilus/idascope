@@ -409,7 +409,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         """
         Action for fixing unknown parts of code (red in address bar) to functions.
         """
-        self.dh.convertNonFunctionCodeWithPrologues()
+        self.dh.convertAnyProloguesToFunctions()
 
     def _onFixAllUnknownCodeButtonClicked(self):
         """

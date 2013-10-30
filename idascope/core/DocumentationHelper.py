@@ -218,7 +218,7 @@ class DocumentationHelper():
         return self.ida_proxy.BAD_ADDR
 
     def convertNonFunctionCode(self):
-        self.convertNonFunctionCodeWithPrologues()
+        self.convertAnyProloguesToFunctions()
         # do a second run to define the rest
         next_instruction = self.ida_proxy.minEA()
         while next_instruction != self.ida_proxy.BAD_ADDR:
@@ -227,6 +227,10 @@ class DocumentationHelper():
                 (next_instruction))
             self.ida_proxy.MakeFunction(next_instruction)
         return
+
+    def convertAnyProloguesToFunctions(self):
+        self.convertDataWithPrologueToCode()
+        self.convertNonFunctionCodeWithPrologues()
 
     def convertNonFunctionCodeWithPrologues(self):
         next_instruction = self.ida_proxy.minEA()
@@ -245,3 +249,19 @@ class DocumentationHelper():
                             + "@ [%08x]" % (next_instruction))
                         self.ida_proxy.MakeFunction(next_instruction)
 
+    def convertDataWithPrologueToCode(self):
+        current_seg = self.ida_proxy.FirstSeg()
+        seg_end = self.ida_proxy.SegEnd(current_seg)
+        while current_seg != self.ida_proxy.BAD_ADDR:
+            signature_hit = self.ida_proxy.find_binary(current_seg, seg_end, "55 8B EC", 16, 1)
+            if signature_hit != self.ida_proxy.BAD_ADDR:
+                flags = self.ida_proxy.GetFlags(signature_hit)
+                if not self.ida_proxy.isCode(flags):
+                    self.ida_proxy.MakeFunction(signature_hit)
+                    print("[+] Fixed undefined data with potential function prologue (push ebp; mov ebp, esp) to function " \
+                            + "@ [%08x]" % (signature_hit))
+                current_seg = signature_hit + 3 + 1
+            else:
+                current_seg = self.ida_proxy.NextSeg(seg_end)
+                if not current_seg == self.ida_proxy.BAD_ADDR:
+                    seg_end = self.ida_proxy.SegEnd(current_seg)
