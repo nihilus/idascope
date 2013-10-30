@@ -64,10 +64,28 @@ class SemanticIdentifier():
         self.renaming_seperator = "_"
         self.semantic_groups = []
         self.semantic_definitions = []
+        self.real_api_names = {}
         self.last_scan_result = {}
         self.idascope_config = idascope_config
+        self._getRealApiNames()
         self._loadSemantics(self.idascope_config)
         return
+
+    def _cbEnumImports(self, addr, name, ordinal):
+        if name:
+            self.real_api_names[name] = self.ida_proxy.Name(addr)
+        return True
+
+    def _getRealApiNames(self):
+        num_imports = self.ida_proxy.get_import_module_qty()
+        for i in xrange(0, num_imports):
+            self.ida_proxy.enum_import_names(i, self._cbEnumImports)
+
+    def _lookupRealApiName(self, api_name):
+        if api_name in self.real_api_names:
+            return self.real_api_names[api_name]
+        else:
+            return api_name
 
     def _loadSemantics(self, config):
         """
@@ -166,12 +184,14 @@ class SemanticIdentifier():
         self.last_scan_result = {}
         for semantic_tag in self.semantic_definitions:
             for api_name in semantic_tag["api_names"]:
-                api_address = self.ida_proxy.LocByName(api_name)
+                real_api_name = self._lookupRealApiName(api_name)
+                api_address = self.ida_proxy.LocByName(real_api_name)
                 for ref in self._getAllRefsTo(api_address):
                     function_ctx = self._getFunctionContext(ref)
                     function_ctx.has_tags = True
                     call_ctx = self.CallContext()
                     call_ctx.called_function_name = api_name
+                    call_ctx.real_called_function_name = real_api_name
                     call_ctx.address_of_call = ref
                     call_ctx.called_address = api_address
                     call_ctx.tag = semantic_tag["tag"]
@@ -221,7 +241,7 @@ class SemanticIdentifier():
 
     def scanDeep(self):
         """
-        Not implemented yet. In the long run, this function shall perform a full enumeration of all instructions,
+        Perform a full enumeration of all instructions,
         gathering information like number of instructions, number of basic blocks,
         references to and from functions etc.
         """
@@ -514,7 +534,7 @@ class SemanticIdentifier():
         @return: a list of ParameterContext data objects.
         """
         resolved_api_parameters = []
-        api_signature = self._getApiSignature(call_context.called_function_name)
+        api_signature = self._getApiSignature(call_context.real_called_function_name)
         push_addresses = self._getPushAddressesBeforeTargetAddress(call_context.address_of_call)
         resolved_api_parameters = self._matchPushAddressesToSignature(push_addresses, api_signature)
         return resolved_api_parameters

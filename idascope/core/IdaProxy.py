@@ -180,6 +180,9 @@ class IdaProxy():
     def CompileLine(self, line):
         return self.idaapi.CompileLine(line)
 
+    def enum_import_names(self, index, callback):
+        return self.idaapi.enum_import_names(index, callback)
+
     def find_not_func(self, *args):
         return self.idaapi.find_not_func(*args)
 
@@ -204,6 +207,12 @@ class IdaProxy():
 
     def get_highlighted_identifier(self):
         return self.idaapi.get_highlighted_identifier()
+
+    def get_import_module_name(self, index):
+        return self.idaapi.get_import_module_name(index)
+
+    def get_import_module_qty(self):
+        return self.idaapi.get_import_module_qty()
 
     def isASCII(self, flags):
         return self.idaapi.isASCII(flags)

@@ -32,6 +32,7 @@ class CallContext():
 
     def __init__(self):
         self.called_function_name = ""
+        self.real_called_function_name = ""
         self.address_of_call = 0
         self.called_address = 0
         self.tag = ""
