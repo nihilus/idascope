@@ -309,6 +309,17 @@ class PatternManager:
         str("\x0D\x66\x19\x00"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
         str("\x5F\xF3\x6E\x3C"): "\"Quick and Dirty\" PRNG from \"Numerical Recipes in C\"",
 
+        str("\x65\x89\x07\x6C"): "MT19937 coefficient (Mersenne Twister)",
+        str("\x80\x56\x2C\x9D"): "MT19937 coefficient (Mersenne Twister)",
+        str("\x00\x00\x6C\xEF"): "MT19937 coefficient (Mersenne Twister)",
+        str("\xDF\xB0\x08\x99"): "MT19937 coefficient (Mersenne Twister)",
+
+        str("\x63\x51\xe1\xb7"): "RC5/RC6 magic",
+        str("\x62\x51\xe1\xb7"): "RC5/RC6 magic",
+        str("\x6b\x2a\xed\x8a"): "RC5/RC6 magic",
+        str("\xb9\x79\x37\x9e"): "RC5/RC6 magic",
+        str("\x15\x7c\x4a\x7f"): "RC5/RC6 magic",
+
         VariablePattern("30 82 ? ? 30 82 ? ?"): "PKCS: X.509 Certificate",
         VariablePattern("30 82 ? ? 02 01 00 02 41"): "PKCS: Private-Key (512 bit)",
         VariablePattern("30 82 ? ? 02 01 00 02 81 81"): "PKCS: Private-Key (1024 bit)",
