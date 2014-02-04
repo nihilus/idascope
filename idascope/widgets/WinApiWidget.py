@@ -256,6 +256,7 @@ class WinApiWidget(QtGui.QWidget):
         """
         if self.winapi.hasOfflineMsdnAvailable():
             highlighted_identifier = Misc.cleanCountingSuffix(self.ida_proxy.get_highlighted_identifier())
+            highlighted_identifier = self.parent.semantic_identifier.lookupDisplayApiName(highlighted_identifier)
             self.navigate(highlighted_identifier)
             self.parent.setTabFocus(self.name)
 
