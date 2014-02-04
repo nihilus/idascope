@@ -40,6 +40,7 @@ from idascope.core.SemanticIdentifier import SemanticIdentifier
 from idascope.core.DocumentationHelper import DocumentationHelper
 from idascope.core.WinApiProvider import WinApiProvider
 from idascope.core.CryptoIdentifier import CryptoIdentifier
+from idascope.core.YaraScanner import YaraScanner
 from idascope.core.IdaProxy import IdaProxy
 from idascope.widgets.FunctionInspectionWidget import FunctionInspectionWidget
 from idascope.widgets.WinApiWidget import WinApiWidget
@@ -93,10 +94,12 @@ class IDAscopeForm(PluginForm):
         """
         time_before = time.time()
         print ("[/] setting up shared modules...")
-        self.semantic_identifier = SemanticIdentifier(self.config)
-        self.crypto_identifier = CryptoIdentifier()
-        self.documentation_helper = DocumentationHelper(self.config)
-        self.winapi_provider = WinApiProvider(self.config)
+        # FIXME: revert commenting
+        # self.semantic_identifier = SemanticIdentifier(self.config)
+        # self.crypto_identifier = CryptoIdentifier()
+        # self.documentation_helper = DocumentationHelper(self.config)
+        # self.winapi_provider = WinApiProvider(self.config)
+        self.yara_scanner = YaraScanner(self.config)
         self.ida_proxy = IdaProxy()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
 
@@ -106,9 +109,10 @@ class IDAscopeForm(PluginForm):
         """
         time_before = time.time()
         print ("[/] setting up widgets...")
-        self.idascope_widgets.append(FunctionInspectionWidget(self))
-        self.idascope_widgets.append(WinApiWidget(self))
-        self.idascope_widgets.append(CryptoIdentificationWidget(self))
+        # FIXME: revert commenting
+        # self.idascope_widgets.append(FunctionInspectionWidget(self))
+        # self.idascope_widgets.append(WinApiWidget(self))
+        # self.idascope_widgets.append(CryptoIdentificationWidget(self))
         self.setupIDAscopeForm()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
 

@@ -16,5 +16,8 @@ configuration = {
         },
     "inspection": {
         "default_semantics": "win-ring3"
+        },
+    "yara": {
+        "yara_sigs": ["C:\\yara\\"]
         }
 }

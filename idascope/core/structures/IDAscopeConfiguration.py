@@ -52,6 +52,7 @@ class IDAscopeConfiguration():
         self.winapi_shortcut = "ctrl+y"
         self.winapi_load_keyword_database = False
         self.winapi_online_enabled = False
+        self.yara_sig_folders = []
         self._loadConfig(configuration)
 
     def _loadConfig(self, configuration):
@@ -75,6 +76,7 @@ class IDAscopeConfiguration():
         self.winapi_load_keyword_database = configuration["winapi"]["load_keyword_database"]
         self.winapi_online_enabled = configuration["winapi"]["online_enabled"]
         self.inspection_default_semantics = configuration["inspection"]["default_semantics"]
+        self.yara_sig_folders = configuration["yara"]["yara_sigs"]
 
     def _normalizePath(self, path):
         if self.os_path_normpath is None:
@@ -94,4 +96,5 @@ class IDAscopeConfiguration():
             + "  icon_file_path: %s\n" % self.icon_file_path \
             + "  semantics_file: %s\n" % self.semantics_file \
             + "  winapi_keywords_file: %s\n" % self.winapi_keywords_file \
-            + "  winapi_rootdir: %s" % self.winapi_rootdir
+            + "  winapi_rootdir: %s" % self.winapi_rootdir \
+            + "  yara_sigs: %s" % self.yara_sig_folders
