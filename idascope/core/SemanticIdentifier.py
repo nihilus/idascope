@@ -81,11 +81,21 @@ class SemanticIdentifier():
         for i in xrange(0, num_imports):
             self.ida_proxy.enum_import_names(i, self._cbEnumImports)
 
-    def _lookupRealApiName(self, api_name):
+    def lookupRealApiName(self, api_name):
         if api_name in self.real_api_names:
             return self.real_api_names[api_name]
         else:
             return api_name
+
+    def lookupDisplayApiName(self, real_api_name):
+        """ returns the key by given value of self.real_api_names (basically inverted dictionary)
+        """
+        name = real_api_name
+        for display_name in self.real_api_names:
+            if real_api_name == self.real_api_names[display_name] \
+                    and display_name in self.real_api_names[display_name]:
+                name = display_name
+        return name
 
     def _loadSemantics(self, config):
         """
@@ -184,7 +194,7 @@ class SemanticIdentifier():
         self.last_scan_result = {}
         for semantic_tag in self.semantic_definitions:
             for api_name in semantic_tag["api_names"]:
-                real_api_name = self._lookupRealApiName(api_name)
+                real_api_name = self.lookupRealApiName(api_name)
                 api_address = self.ida_proxy.LocByName(real_api_name)
                 for ref in self._getAllRefsTo(api_address):
                     function_ctx = self._getFunctionContext(ref)
