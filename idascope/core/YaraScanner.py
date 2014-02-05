@@ -43,6 +43,7 @@ class YaraScanner():
     """
 
     def __init__(self, idascope_config):
+        # FIXME: APT1 sample source: http://contagiodump.blogspot.de/2013/03/mandiant-apt1-samples-categorized-by.html
         print ("[|] loading YaraScanner")
         self.os = os
         self.re = re
@@ -51,18 +52,20 @@ class YaraScanner():
         self.yara = yara
         # fields
         self.idascope_config = idascope_config
+        self.num_files_loaded = 0
         self._yara_rules = []
         self._results = []
-        # FIXME: test more, then create GUI
-        self.test()
+        self.segment_offsets = []
 
     def test(self):
         self.load_rules()
-        print self._yara_rules
         self.scan()
-        print self._results
+
+    def getResults(self):
+        return self._results
 
     def load_rules(self):
+        self.num_files_loaded = 0
         self._yara_rules = []
         for yara_path in self.idascope_config.yara_sig_folders:
             for dirpath, dirnames, filenames in os.walk(yara_path):
@@ -71,24 +74,48 @@ class YaraScanner():
                     try:
                         rules = yara.compile(filepath)
                         self._yara_rules.append(rules)
+                        if rules:
+                            self.num_files_loaded += 1
                     except:
                         print "[!] Could not load yara rules file: %s" % filepath
 
     def _get_memory(self):
         result = ""
-        start = [ea for ea in self.ida_proxy.Segments()][0]
-        end = self.ida_proxy.SegEnd(start)
-        for ea in Misc.lrange(start, end):
-            result += chr(self.ida_proxy.Byte(ea))
-        return result
+        segment_starts = [ea for ea in self.ida_proxy.Segments()]
+        offsets = []
+        start_len = 0
+        for start in segment_starts:
+            end = self.ida_proxy.SegEnd(start)
+            for ea in Misc.lrange(start, end):
+                result += chr(self.ida_proxy.Byte(ea))
+            offsets.append((start, start_len, len(result)))
+            start_len = len(result)
+        return result, offsets
 
     def _result_callback(self, data):
+        adjusted_offsets = []
+        for string in data["strings"]:
+            adjusted_offsets.append((self._translateMemOffsetToVirtualAddress(string[0]), string[1], string[2]))
+        data["strings"] = adjusted_offsets
         self._results.append(data)
+        if data["matches"]:
+            print "  [+] Yara Match for signature: %s" % data["rule"]
         yara.CALLBACK_CONTINUE
 
+    def _translateMemOffsetToVirtualAddress(self, offset):
+        va_offset = 0
+        for seg in self.segment_offsets:
+            if seg[1] < offset < seg[2]:
+                va_offset = seg[0] + (offset - seg[1])
+        return va_offset
+
     def scan(self):
-        memory = self._get_memory()
+        memory, offsets = self._get_memory()
+        self.segment_offsets = offsets
         self._results = []
         matches = []
+        print "[!] Performing Yara scan..."
         for rule in self._yara_rules:
             matches.append(rule.match(data=memory, callback=self._result_callback))
+        if len(matches) == 0:
+            print "  [-] no matches. :("
