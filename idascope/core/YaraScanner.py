@@ -23,7 +23,10 @@
 #  <http://www.gnu.org/licenses/>.
 #
 ########################################################################
-#
+# Credits:
+# * Christopher Kannen for contributing an independent loader for
+#   YARA rules which allows to display unmatched rules and
+#   content of rule files as loaded by yara-python
 ########################################################################
 
 import os
@@ -34,6 +37,8 @@ import yara
 
 from IdaProxy import IdaProxy
 import idascope.core.helpers.Misc as Misc
+from idascope.core.helpers.YaraRuleLoader import YaraRuleLoader
+from idascope.core.helpers.YaraRule import YaraRule
 
 
 class YaraScanner():
@@ -48,36 +53,52 @@ class YaraScanner():
         self.os = os
         self.re = re
         self.time = time
-        self.ida_proxy = IdaProxy()
         self.yara = yara
+        self.YaraRule = YaraRule
+        self.ida_proxy = IdaProxy()
+        self.yrl = YaraRuleLoader()
         # fields
         self.idascope_config = idascope_config
         self.num_files_loaded = 0
+        self._compiled_rules = []
         self._yara_rules = []
         self._results = []
         self.segment_offsets = []
-
-    def test(self):
-        self.load_rules()
-        self.scan()
 
     def getResults(self):
         return self._results
 
     def load_rules(self):
         self.num_files_loaded = 0
+        self._compiled_rules = []
         self._yara_rules = []
         for yara_path in self.idascope_config.yara_sig_folders:
-            for dirpath, dirnames, filenames in os.walk(yara_path):
-                for filename in filenames:
-                    filepath = dirpath + os.sep + filename
-                    try:
-                        rules = yara.compile(filepath)
-                        self._yara_rules.append(rules)
-                        if rules:
-                            self.num_files_loaded += 1
-                    except:
-                        print "[!] Could not load yara rules file: %s" % filepath
+            self._load_recursive(yara_path)
+
+    def _load_recursive(self, yara_path):
+        for dirpath, dirnames, filenames in os.walk(yara_path):
+            for filename in filenames:
+                filepath = dirpath + os.sep + filename
+                try:
+                    print "loading rules from file: %s" % filepath
+                    rules = yara.compile(filepath)
+                    self._compiled_rules.append(rules)
+                    self._yara_rules.extend(self.yrl.loadRulesFromFile(filepath))
+                    if rules:
+                        self.num_files_loaded += 1
+                except:
+                    print "[!] Could not load yara rules file: %s" % filepath
+
+    def scan(self):
+        memory, offsets = self._get_memory()
+        self.segment_offsets = offsets
+        self._results = []
+        matches = []
+        print "[!] Performing Yara scan..."
+        for rule in self._compiled_rules:
+            matches.append(rule.match(data=memory, callback=self._result_callback))
+        if len(matches) == 0:
+            print "  [-] no matches. :("
 
     def _get_memory(self):
         result = ""
@@ -97,10 +118,18 @@ class YaraScanner():
         for string in data["strings"]:
             adjusted_offsets.append((self._translateMemOffsetToVirtualAddress(string[0]), string[1], string[2]))
         data["strings"] = adjusted_offsets
-        self._results.append(data)
         if data["matches"]:
             print "  [+] Yara Match for signature: %s" % data["rule"]
-        yara.CALLBACK_CONTINUE
+        result_rule = None
+        for rule in self._yara_rules:
+            if rule.rule_name == data["rule"]:
+                result_rule = rule
+        if not result_rule:
+            result_rule = self.YaraRule()
+        result_rule.match_data = data
+        self._results.append(result_rule)
+
+        self.yara.CALLBACK_CONTINUE
 
     def _translateMemOffsetToVirtualAddress(self, offset):
         va_offset = 0
@@ -108,14 +137,3 @@ class YaraScanner():
             if seg[1] < offset < seg[2]:
                 va_offset = seg[0] + (offset - seg[1])
         return va_offset
-
-    def scan(self):
-        memory, offsets = self._get_memory()
-        self.segment_offsets = offsets
-        self._results = []
-        matches = []
-        print "[!] Performing Yara scan..."
-        for rule in self._yara_rules:
-            matches.append(rule.match(data=memory, callback=self._result_callback))
-        if len(matches) == 0:
-            print "  [-] no matches. :("

@@ -51,6 +51,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         self.central_widget = self.QtGui.QWidget()
         self.setCentralWidget(self.central_widget)
         self._createGui()
+        self._selected_rule = None
 
     def _createGui(self):
         """
@@ -176,16 +177,19 @@ class YaraScannerWidget(QtGui.QMainWindow):
         """
         result = []
         for rule in rule_results:
-            string_ids = [item[1] for item in rule["strings"]]
-            num_unique_strings = len(set(string_ids))
-            result.append({"name": rule["rule"], "strings": num_unique_strings, "match": "%s" % rule["matches"]})
+            matched_ids = [item[1] for item in rule.match_data["strings"]]
+            num_unique_strings = len(set(matched_ids))
+            result.append({"name": rule.rule_name,
+                           "num_matched_strings": num_unique_strings,
+                           "num_all_strings": len(rule.strings),
+                           "match": "%s" % rule.match_data["matches"]})
         return result
 
     def _setRuleTableHeaderLabels(self):
         """
         Set the header labels for the yara scan result table.
         """
-        self.rules_table_header_labels = ["Rule Name", "Strings Matched", "Match Outcome"]
+        self.rules_table_header_labels = ["Rule Name", "Strings Matched", "% Matched", "Match?"]
 
     def _getRuleTableItem(self, data_item, column_index):
         """
@@ -200,12 +204,18 @@ class YaraScannerWidget(QtGui.QMainWindow):
         if column_index == 0:
             tmp_item = self.QtGui.QTableWidgetItem(data_item["name"])
         elif column_index == 1:
-            tmp_item = self.NumberQTableWidgetItem("%d" % data_item["strings"])
+            tmp_item = self.NumberQTableWidgetItem("%d" % data_item["num_matched_strings"])
         elif column_index == 2:
+            if data_item["num_all_strings"] > 0:
+                percentage = 100.0 * data_item["num_matched_strings"] / data_item["num_all_strings"]
+                tmp_item = self.NumberQTableWidgetItem("%3.2f" % percentage)
+            else:
+                tmp_item = self.NumberQTableWidgetItem("0")
+        elif column_index == 3:
             tmp_item = self.QtGui.QTableWidgetItem(data_item["match"])
         if data_item["match"] == "True":
             tmp_item.setBackground(self.QtGui.QBrush(self.QtGui.QColor(0xCC0000)))
-        elif data_item["match"] == "False" and data_item["strings"] > 0:
+        elif data_item["match"] == "False" and data_item["num_matched_strings"] > 0:
             tmp_item.setBackground(self.QtGui.QBrush(self.QtGui.QColor(0xFFBB00)))
         else:
             tmp_item.setBackground(self.QtGui.QBrush(self.QtGui.QColor(0x22CC00)))
@@ -218,9 +228,10 @@ class YaraScannerWidget(QtGui.QMainWindow):
         """
         clicked_rule_name = self.rules_table.item(mi.row(), 0).text()
         for rule_result in self.ys.getResults():
-            if rule_result["rule"] == clicked_rule_name:
-                print "rule found", rule_result
+            if rule_result.rule_name == clicked_rule_name:
+                print "rule found", clicked_rule_name
                 self.populateResultTable(rule_result)
+                self._selected_rule = rule_result
 
 ################################################################################
 # Detailed Result GUI
@@ -235,6 +246,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         num_hits = 0
         num_strings = 0
         self.result_label = QtGui.QLabel("%d out of %d strings matched" % (num_hits, num_strings))
+        # self.rule_builder_button = QIcon(self.parent.config.icon_file_path + "forward.png")
 
         # rule visualization
         self.result_widget = QtGui.QWidget()
@@ -251,7 +263,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         Create the result table for displaying results yara scanning
         """
         self.result_table = QtGui.QTableWidget()
-        self.populateResultTable({})
+        self.populateResultTable(None)
         self.result_table.doubleClicked.connect(self._onResultDoubleClicked)
 
     def populateResultTable(self, rule_result):
@@ -265,7 +277,13 @@ class YaraScannerWidget(QtGui.QMainWindow):
         self._setResultTableHeaderLabels()
         table_data = self._calculateResultTableData(rule_result)
         row_count = len(table_data)
-        self.result_label.setText("%d out of ? strings matched" % (row_count))
+        matched_str = set([])
+        all_str = set([])
+        for data_item in table_data:
+            if data_item[0]:
+                matched_str.update([data_item[2]])
+            all_str.update([data_item[2]])
+        self.result_label.setText("%d out of %d strings matched" % (len(matched_str), len(all_str)))
 
         self.result_table.setColumnCount(len(self.result_table_header_labels))
         self.result_table.setHorizontalHeaderLabels(self.result_table_header_labels)
@@ -288,7 +306,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         """
         Set the header labels for the yara scan result table.
         """
-        self.result_table_header_labels = ["Address", "String ID", "Value"]
+        self.result_table_header_labels = ["Address / Type", "String ID", "Value"]
 
     def _calculateResultTableData(self, rule_result):
         """
@@ -297,10 +315,18 @@ class YaraScannerWidget(QtGui.QMainWindow):
         @type: rule_results: a list of dict, as generated by Yara
         @return: (a list of elements) where elements are temporary dictionaries prepared for display
         """
-        if "strings" in rule_result:
-            return rule_result["strings"]
-        else:
+        if not rule_result:
             return []
+        result = []
+        for string in rule_result.match_data["strings"]:
+            res_tuple = (True, string[0], string[1], string[2])
+            result.append(res_tuple)
+        matched_strings = [string[2] for string in result]
+        for string in rule_result.strings:
+            if string[1] not in matched_strings:
+                res_tuple = (False, string[0], string[1], string[2])
+                result.append(res_tuple)
+        return result
 
     def _getResultTableItem(self, data_item, column_index):
         """
@@ -313,11 +339,18 @@ class YaraScannerWidget(QtGui.QMainWindow):
         """
         tmp_item = self.QtGui.QTableWidgetItem()
         if column_index == 0:
-            tmp_item = self.QtGui.QTableWidgetItem("0x%x" % data_item[0])
+            if data_item[0]:
+                tmp_item = self.QtGui.QTableWidgetItem("0x%x" % data_item[1])
+            else:
+                tmp_item = self.QtGui.QTableWidgetItem("%s" % data_item[1])
         elif column_index == 1:
-            tmp_item = self.QtGui.QTableWidgetItem("%s" % data_item[1])
-        elif column_index == 2:
             tmp_item = self.QtGui.QTableWidgetItem("%s" % data_item[2])
+        elif column_index == 2:
+            tmp_item = self.QtGui.QTableWidgetItem("%s" % data_item[3])
+        if data_item[0]:
+            tmp_item.setBackground(self.QtGui.QBrush(self.QtGui.QColor(0xCC0000)))
+        else:
+            tmp_item.setBackground(self.QtGui.QBrush(self.QtGui.QColor(0x22CC00)))
         return tmp_item
 
     def _onResultDoubleClicked(self, mi):
@@ -325,9 +358,8 @@ class YaraScannerWidget(QtGui.QMainWindow):
         The action to perform when an entry in the arithmetic/logic table is double clicked.
         Changes IDA View either to the function or basic block, depending on the column clicked.
         """
-        clicked_address = 0
-        if mi.column() == 0 or mi.column() == 1:
-            clicked_address = self.result_table.item(mi.row(), 0).text()
-        elif mi.column() >= 2:
-            clicked_address = self.result_table.item(mi.row(), 2).text()
-        self.ip.Jump(int(clicked_address, 16))
+        clicked_address = self.result_table.item(mi.row(), 0).text()
+        try:
+            self.ip.Jump(int(clicked_address, 16))
+        except ValueError:
+            pass
