@@ -52,7 +52,7 @@ class FunctionInspectionWidget(QtGui.QMainWindow):
         self.QtGui = QtGui
         self.QtCore = QtCore
         self.NumberQTableWidgetItem = NumberQTableWidgetItem
-        self. FunctionFilterDialog = FunctionFilterDialog
+        self.FunctionFilterDialog = FunctionFilterDialog
         self.central_widget = self.QtGui.QWidget()
         self.setCentralWidget(self.central_widget)
         self._createGui()
