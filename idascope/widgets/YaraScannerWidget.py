@@ -163,10 +163,16 @@ class YaraScannerWidget(QtGui.QMainWindow):
             self.rules_table.resizeRowToContents(row)
 
         self.rules_table.setSelectionMode(self.QtGui.QAbstractItemView.SingleSelection)
+        # size work around according to: https://stackoverflow.com/a/3445485
+        self.rules_table.setVisible(False)
         self.rules_table.resizeColumnsToContents()
+        self.rules_table.setVisible(True)
+        # sorting
         self.rules_table.setSortingEnabled(True)
+        self.rules_table.sortByColumn(2, QtCore.Qt.SortOrder.DescendingOrder)
 
         if len(rule_results) > 0:
+            self._selected_rule = rule_results[0]
             self.populateResultTable(rule_results[0])
 
     def _calculateRuleTableData(self, rule_results):
