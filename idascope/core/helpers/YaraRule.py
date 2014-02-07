@@ -34,6 +34,7 @@ class YaraRule(object):
 
     def __init__(self):
         self.statusController = StatusController()
+        self.filename = ""
         # set raw data of rule content, to be parsed by analyze* methods
         self.raw_header = ""
         self.raw_header_cleaned = ""
@@ -274,7 +275,7 @@ class YaraRule(object):
         result = ""
         result += "global " if self.is_global else ""
         result += "private " if self.is_private else ""
-        result += self.rule_name
+        result += "rule " + self.rule_name
         if self.rule_description:
             result += " : " + " ".join(self.rule_description)
         result += "\n{\n"
@@ -292,7 +293,7 @@ class YaraRule(object):
                 result += " " * 8 + "%s = %s%s%s %s\n" % (string_line[1],
                                                        start_delimiters[string_line[0]],
                                                        string_line[2],
-                                                       end_delimiters[string_line[0]], " ".join(string_line))
+                                                       end_delimiters[string_line[0]], " ".join(string_line[3]))
             result += "\n"
         result += "    condition:\n"
         result += " " * 8 + "%s\n" % self.condition

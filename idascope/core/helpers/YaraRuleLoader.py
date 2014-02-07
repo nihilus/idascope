@@ -46,7 +46,7 @@ class YaraRuleLoader(object):
         #clean content
         content_cleaned = self._cleanContent(content)
         # split content in Yara Rules
-        return self._splitYaraRules(content, content_cleaned)
+        return self._splitYaraRules(content, content_cleaned, filename)
 
     def _cleanContent(self, content):
         """ clean content, replace comments by spaces, replace strings by underlines """
@@ -133,7 +133,7 @@ class YaraRuleLoader(object):
         # return content without comments and strings
         return result
 
-    def _splitYaraRules(self, content, content_cleaned):
+    def _splitYaraRules(self, content, content_cleaned, filename):
         """ get all Yara rules split in sections (header, meta, strings, condition) """
         # result, list of Yara rules
         yara_rules = []
@@ -192,6 +192,7 @@ class YaraRuleLoader(object):
                 # add fully parsed rule to list and create next rule
                 yara_rules.append(current_rule)
                 # analyze Yara rule
+                current_rule.filename = filename
                 current_rule.analyze()
                 current_rule = YaraRule()
 

@@ -95,11 +95,10 @@ class IDAscopeForm(PluginForm):
         """
         time_before = time.time()
         print ("[/] setting up shared modules...")
-        # FIXME: revert commenting
-        # self.documentation_helper = DocumentationHelper(self.config)
-        # self.semantic_identifier = SemanticIdentifier(self.config)
-        # self.winapi_provider = WinApiProvider(self.config)
-        # self.crypto_identifier = CryptoIdentifier()
+        self.documentation_helper = DocumentationHelper(self.config)
+        self.semantic_identifier = SemanticIdentifier(self.config)
+        self.winapi_provider = WinApiProvider(self.config)
+        self.crypto_identifier = CryptoIdentifier()
         self.yara_scanner = YaraScanner(self.config)
         self.ida_proxy = IdaProxy()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))
@@ -110,10 +109,9 @@ class IDAscopeForm(PluginForm):
         """
         time_before = time.time()
         print ("[/] setting up widgets...")
-        # FIXME: revert commenting
-        # self.idascope_widgets.append(FunctionInspectionWidget(self))
-        # self.idascope_widgets.append(WinApiWidget(self))
-        # self.idascope_widgets.append(CryptoIdentificationWidget(self))
+        self.idascope_widgets.append(FunctionInspectionWidget(self))
+        self.idascope_widgets.append(WinApiWidget(self))
+        self.idascope_widgets.append(CryptoIdentificationWidget(self))
         self.idascope_widgets.append(YaraScannerWidget(self))
         self.setupIDAscopeForm()
         print ("[\\] this took %3.2f seconds.\n" % (time.time() - time_before))

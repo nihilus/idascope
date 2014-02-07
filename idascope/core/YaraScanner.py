@@ -33,7 +33,11 @@ import os
 import re
 import time
 
-import yara
+try:
+    import yara
+except ImportError:
+    print("[-] ERROR: Could not import YARA (not installed?), scanner disabled.")
+    yara = None
 
 from IdaProxy import IdaProxy
 import idascope.core.helpers.Misc as Misc
@@ -48,7 +52,6 @@ class YaraScanner():
     """
 
     def __init__(self, idascope_config):
-        # FIXME: APT1 sample source: http://contagiodump.blogspot.de/2013/03/mandiant-apt1-samples-categorized-by.html
         print ("[|] loading YaraScanner")
         self.os = os
         self.re = re
@@ -69,6 +72,8 @@ class YaraScanner():
         return self._results
 
     def load_rules(self):
+        if not self.yara:
+            return
         self.num_files_loaded = 0
         self._compiled_rules = []
         self._yara_rules = []
@@ -76,25 +81,35 @@ class YaraScanner():
             self._load_recursive(yara_path)
 
     def _load_recursive(self, yara_path):
-        for dirpath, dirnames, filenames in os.walk(yara_path):
-            for filename in filenames:
-                filepath = dirpath + os.sep + filename
-                try:
-                    print "loading rules from file: %s" % filepath
-                    rules = yara.compile(filepath)
-                    self._compiled_rules.append(rules)
-                    self._yara_rules.extend(self.yrl.loadRulesFromFile(filepath))
-                    if rules:
-                        self.num_files_loaded += 1
-                except:
-                    print "[!] Could not load yara rules file: %s" % filepath
+        if os.path.isfile(yara_path):
+            self._load_file(yara_path)
+        elif os.path.isdir(yara_path):
+            for dirpath, dirnames, filenames in os.walk(yara_path):
+                for filename in filenames:
+                    filepath = dirpath + os.sep + filename
+                    self._load_file(filepath)
+
+    def _load_file(self, filepath):
+        try:
+            rules = yara.compile(filepath)
+            self._compiled_rules.append(rules)
+            rules_from_file = self.yrl.loadRulesFromFile(filepath)
+            self._yara_rules.extend(rules_from_file)
+            print "loading rules from file: %s (%d)" % (filepath, len(rules_from_file))
+            if rules:
+                self.num_files_loaded += 1
+        except:
+            print "[!] Could not load yara rules from file: %s" % filepath
 
     def scan(self):
+        if not self.yara:
+            print "[!] yara-python not available, please install it from (http://plusvic.github.io/yara/)"
+            return
         memory, offsets = self._get_memory()
         self.segment_offsets = offsets
         self._results = []
         matches = []
-        print "[!] Performing Yara scan..."
+        print "[!] Performing YARA scan..."
         for rule in self._compiled_rules:
             matches.append(rule.match(data=memory, callback=self._result_callback))
         if len(matches) == 0:
@@ -119,7 +134,7 @@ class YaraScanner():
             adjusted_offsets.append((self._translateMemOffsetToVirtualAddress(string[0]), string[1], string[2]))
         data["strings"] = adjusted_offsets
         if data["matches"]:
-            print "  [+] Yara Match for signature: %s" % data["rule"]
+            print "  [+] YARA Match for signature: %s" % data["rule"]
         result_rule = None
         for rule in self._yara_rules:
             if rule.rule_name == data["rule"]:

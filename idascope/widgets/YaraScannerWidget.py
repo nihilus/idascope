@@ -28,6 +28,7 @@ from PySide import QtGui, QtCore
 from PySide.QtGui import QIcon
 
 from NumberQTableWidgetItem import NumberQTableWidgetItem
+from YaraRuleDialog import YaraRuleDialog
 
 
 class YaraScannerWidget(QtGui.QMainWindow):
@@ -37,8 +38,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         print "[|] loading YaraScannerWidget"
         # enable access to shared IDAscope modules
         self.parent = parent
-        self.name = "Yara Scanner"
-        # FIXME: select a icon for this
+        self.name = "YARA Scanner"
         self.icon = QIcon(self.parent.config.icon_file_path + "yarascan.png")
         # This widget relies on yara scanner for resuls and scanning as well as IdaProxy for navigation
         self.ys = self.parent.yara_scanner
@@ -47,6 +47,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         self.QtGui = QtGui
         self.QtCore = QtCore
         self.NumberQTableWidgetItem = NumberQTableWidgetItem
+        self.YaraRuleDialog = YaraRuleDialog
 
         self.central_widget = self.QtGui.QWidget()
         self.setCentralWidget(self.central_widget)
@@ -80,7 +81,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         Creates the toolbar, containing buttons to control the widget.
         """
         self._createLoadAndScanAction()
-        self.toolbar = self.addToolBar('Yara Scanner Toobar')
+        self.toolbar = self.addToolBar('YARA Scanner Toobar')
         self.toolbar.addAction(self.loadAndScanAction)
 
     def _createLoadAndScanAction(self):
@@ -88,7 +89,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
         Create an action for the scan button of the toolbar and connect it.
         """
         self.loadAndScanAction = QtGui.QAction(QIcon(self.parent.config.icon_file_path + "search.png"), \
-            "(Re)load Yara Signature files and scan", self)
+            "(Re)load YARA Signature files and scan", self)
         self.loadAndScanAction.triggered.connect(self._onLoadAndScanButtonClicked)
 
     def _onLoadAndScanButtonClicked(self):
@@ -229,7 +230,6 @@ class YaraScannerWidget(QtGui.QMainWindow):
         clicked_rule_name = self.rules_table.item(mi.row(), 0).text()
         for rule_result in self.ys.getResults():
             if rule_result.rule_name == clicked_rule_name:
-                print "rule found", clicked_rule_name
                 self.populateResultTable(rule_result)
                 self._selected_rule = rule_result
 
@@ -246,17 +246,35 @@ class YaraScannerWidget(QtGui.QMainWindow):
         num_hits = 0
         num_strings = 0
         self.result_label = QtGui.QLabel("%d out of %d strings matched" % (num_hits, num_strings))
-        # self.rule_builder_button = QIcon(self.parent.config.icon_file_path + "forward.png")
+        self.rule_display_icon = QIcon(self.parent.config.icon_file_path + "winapi.png")
 
         # rule visualization
         self.result_widget = QtGui.QWidget()
         result_layout = QtGui.QVBoxLayout()
         self._createResultTable()
+        self._createResultInfoButton()
+
+        self.result_info_widget = QtGui.QWidget()
+        result_info_layout = QtGui.QHBoxLayout()
+        result_info_layout.addWidget(self.result_info_button)
+        result_info_layout.addWidget(self.result_label)
+        result_info_layout.addStretch(1)
+        self.result_info_widget.setLayout(result_info_layout)
 
         # widget composition
-        result_layout.addWidget(self.result_label)
+        result_layout.addWidget(self.result_info_widget)
         result_layout.addWidget(self.result_table)
         self.result_widget.setLayout(result_layout)
+
+    def _createResultInfoButton(self):
+        """
+        Create a back button to allow easier browsing
+        """
+        self.result_info_button = QtGui.QPushButton(self.rule_display_icon, "", self)
+        self.result_info_button.setToolTip("Show full rule")
+        self.result_info_button.resize(self.result_info_button.sizeHint())
+        self.result_info_button.setEnabled(True)
+        self.result_info_button.clicked.connect(self._onResultInfoButtonClicked)
 
     def _createResultTable(self):
         """
@@ -283,7 +301,12 @@ class YaraScannerWidget(QtGui.QMainWindow):
             if data_item[0]:
                 matched_str.update([data_item[2]])
             all_str.update([data_item[2]])
-        self.result_label.setText("%d out of %d strings matched" % (len(matched_str), len(all_str)))
+        rule_label = ""
+        if rule_result:
+            rule_label = "%d out of %d strings matched (%s)" % (len(matched_str), len(all_str), rule_result.rule_name)
+        else:
+            rule_label = "No rule selected."
+        self.result_label.setText(rule_label)
 
         self.result_table.setColumnCount(len(self.result_table_header_labels))
         self.result_table.setHorizontalHeaderLabels(self.result_table_header_labels)
@@ -363,3 +386,7 @@ class YaraScannerWidget(QtGui.QMainWindow):
             self.ip.Jump(int(clicked_address, 16))
         except ValueError:
             pass
+
+    def _onResultInfoButtonClicked(self):
+        dialog = self.YaraRuleDialog(self._selected_rule)
+        dialog.exec_()
