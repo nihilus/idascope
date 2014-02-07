@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>IDAscope v1.0 manual</title>
+<title>IDAscope v1.1 manual</title>
 <style type="text/css">
 body {
 	font-family: Courier; 
@@ -231,6 +231,21 @@ img {
 </ul>
 </p>
 <p>A description of this widget is also covered in this <a href="http://pnx-tf.blogspot.de/2012/08/idascope-update-crypto-identification.html">blog post</a>.</p>
+
+</body>
+</html>
+
+
+<h3>YARA Scanner</h3>
+
+<img src="images/yarascan.png" height=550px />
+
+<p>This widget provides access to YARA seamlessly from IDA.</p>
+<p>Since the 2.0 release of YARA, the python bindings can be flawlessly imported into IDA. This finally allows easy integration of this awesome signature scanner into our preferred static analysis tool. :) <br />
+The widget is split in two parts: After a scan, the upper part lists all available rules and their outcome of matching against the loaded binary. The lower parts provides more detailed information on a rule selected in the upper window. The small button besides the name show the signature (stripped from comments) as contained in the rule source file.  
+</p>
+<p>Make sure to adjust the ./idascope/config.py to your local environment!</p>
+<p>A description of this widget is also covered in this <a href="http://pnx-tf.blogspot.de/2014/02/idascope-v11-yara-scanning.html">blog post</a>.</p>
 
 </body>
 </html>
