@@ -76,7 +76,9 @@ class IDAscopeConfiguration():
         self.winapi_load_keyword_database = configuration["winapi"]["load_keyword_database"]
         self.winapi_online_enabled = configuration["winapi"]["online_enabled"]
         self.inspection_default_semantics = configuration["inspection"]["default_semantics"]
-        self.yara_sig_folders = configuration["yara"]["yara_sigs"]
+        idascope_yara_folder = self.root_file_path + self.os.sep + os.sep.join(["idascope", "data", "yara"])
+        self.yara_sig_folders = [self._normalizePath(idascope_yara_folder)]
+        self.yara_sig_folders.extend(configuration["yara"]["yara_sigs"])
 
     def _normalizePath(self, path):
         if self.os_path_normpath is None:
@@ -96,5 +98,5 @@ class IDAscopeConfiguration():
             + "  icon_file_path: %s\n" % self.icon_file_path \
             + "  semantics_file: %s\n" % self.semantics_file \
             + "  winapi_keywords_file: %s\n" % self.winapi_keywords_file \
-            + "  winapi_rootdir: %s" % self.winapi_rootdir \
+            + "  winapi_rootdir: %s\n" % self.winapi_rootdir \
             + "  yara_sigs: %s" % self.yara_sig_folders

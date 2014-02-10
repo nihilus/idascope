@@ -1,0 +1,5 @@
+# byte code
+*.pyc
+
+# private yara signatures
+*idascope/data/yara/*

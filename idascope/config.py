@@ -18,6 +18,7 @@ configuration = {
         "default_semantics": "win-ring3"
         },
     "yara": {
+        # relative path "idascope\\data\\yara\\" is added on plugin startup.
         "yara_sigs": ["C:\\yara"]
         }
 }

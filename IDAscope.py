@@ -69,6 +69,7 @@ class IDAscopeForm(PluginForm):
         self.idascope_widgets = []
         self.ensureRootPathSanity(config.configuration)
         self.config = IDAscopeConfiguration(config.configuration)
+        print str(self.config)
         self.icon = QIcon(self.config.icon_file_path + "idascope.png")
 
     def ensureRootPathSanity(self, configuration):
