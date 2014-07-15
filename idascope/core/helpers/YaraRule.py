@@ -58,6 +58,16 @@ class YaraRule(object):
         # match data as provided by yara-python
         self.match_data = {}
 
+    def checkRule(self):
+        unique_names = {}
+        for string in self.strings:
+            if string[1] in unique_names:
+                print "[!] Rule %s has duplicate variable name: \"%s\"" % (self.rule_name, self.filename, string[1])
+                raise Exception("Duplicate variable name")
+            else:
+                unique_names[string[1]] = "loaded"
+        return True
+
     def analyze(self):
         self._analyzeHeader()
         self._analyzeMeta()

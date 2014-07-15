@@ -91,10 +91,12 @@ class YaraScanner():
 
     def _load_file(self, filepath):
         try:
+            rules_from_file = self.yrl.loadRulesFromFile(filepath)
+            for rule in rules_from_file:
+                rule.checkRule()
+            self._yara_rules.extend(rules_from_file)
             rules = yara.compile(filepath)
             self._compiled_rules.append(rules)
-            rules_from_file = self.yrl.loadRulesFromFile(filepath)
-            self._yara_rules.extend(rules_from_file)
             print "loading rules from file: %s (%d)" % (filepath, len(rules_from_file))
             if rules:
                 self.num_files_loaded += 1
