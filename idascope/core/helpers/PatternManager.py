@@ -317,12 +317,16 @@ class PatternManager:
         str("\x63\x51\xe1\xb7"): "RC5/RC6 magic",
         str("\x62\x51\xe1\xb7"): "RC5/RC6 magic",
         str("\x6b\x2a\xed\x8a"): "RC5/RC6 magic",
-        
+
         str("\xb9\x79\x37\x9e"): "RC5/RC6 magic",
         str("\x47\x86\xc8\x61"): "RC5/RC6 magic",
-        
+
         str("\x15\x7c\x4a\x7f"): "RC5/RC6 magic",
-        
+
+        str("\x15\x7c\x4a\x7f"): "RC5/RC6 magic",
+
+        str("\xfd\x43\x03\x00"): "rand() magic",
+        str("\xc3\x9e\x26\x00"): "rand() magic",
 
         VariablePattern("30 82 ? ? 30 82 ? ?"): "PKCS: X.509 Certificate",
         VariablePattern("30 82 ? ? 02 01 00 02 41"): "PKCS: Private-Key (512 bit)",
